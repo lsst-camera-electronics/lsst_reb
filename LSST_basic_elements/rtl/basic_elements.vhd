@@ -10,6 +10,9 @@ package basic_elements is
   type    array816 is array (7 downto 0) of word_16;
   type    array2416 is array (23 downto 0) of word_16;
 
+  subtype word_18 is std_logic_vector (17 downto 0);
+  type array1618 is array (15 downto 0) of word_18;
+
 end basic_elements;
 
 package body basic_elements is
