@@ -1,20 +1,20 @@
 ----------------------------------------------------------------------------------
--- Company: 
--- Engineer: 
--- 
--- Create Date:    18:13:09 07/06/2016 
--- Design Name: 
--- Module Name:    dual_ads1118_controller_fsm - Behavioral 
--- Project Name: 
--- Target Devices: 
--- Tool versions: 
--- Description: 
+-- Company:
+-- Engineer:
 --
--- Dependencies: 
+-- Create Date:    18:13:09 07/06/2016
+-- Design Name:
+-- Module Name:    dual_ads1118_controller_fsm - Behavioral
+-- Project Name:
+-- Target Devices:
+-- Tool versions:
+-- Description:
 --
--- Revision: 
+-- Dependencies:
+--
+-- Revision:
 -- Revision 0.01 - File Created
--- Additional Comments: 
+-- Additional Comments:
 --
 ----------------------------------------------------------------------------------
 
@@ -22,16 +22,6 @@ library IEEE;
 use IEEE.STD_LOGIC_1164.all;
 use IEEE.STD_LOGIC_ARITH.all;
 use IEEE.STD_LOGIC_UNSIGNED.all;
-
-
--- Uncomment the following library declaration if using
--- arithmetic functions with Signed or Unsigned values
---use IEEE.NUMERIC_STD.ALL;
-
--- Uncomment the following library declaration if instantiating
--- any Xilinx primitives in this code.
---library UNISIM;
---use UNISIM.VComponents.all;
 
 entity dual_ads1118_controller_fsm is
 
@@ -73,13 +63,13 @@ architecture Behavioral of dual_ads1118_controller_fsm is
   constant read_ch1 : std_logic_vector(15 downto 0) := x"D"&x"38B";  -- reads channel 1 range +-4.096 T_ASPIC_bot
   constant read_ch2 : std_logic_vector(15 downto 0) := x"E"&x"38B";  -- reads channel 2 range +-4.096 2.5V
   constant read_ch3 : std_logic_vector(15 downto 0) := x"F"&x"38B";  -- reads channel 3 range +-4.096 5V (voltage divider on the board)
-  
+
   --constant read_ch0 : std_logic_vector(15 downto 0) := x"C"&x"303";  -- reads channel 0 range +-4.096 T_ASPIC_top
   --constant read_ch1 : std_logic_vector(15 downto 0) := x"D"&x"303";  -- reads channel 1 range +-4.096 T_ASPIC_bot
   --constant read_ch2 : std_logic_vector(15 downto 0) := x"E"&x"303";  -- reads channel 2 range +-4.096 2.5V
   --constant read_ch3 : std_logic_vector(15 downto 0) := x"F"&x"303";  -- reads channel 3 range +-4.096 5V (voltage divider on the board)
-  
-  
+
+
 
 
 begin
@@ -110,7 +100,7 @@ begin
   begin
 
     -------------------- outputs default values  --------------------
-    
+
     next_start_spi      <= '0';
     next_link_busy      <= '1';
     next_data_to_spi    <= (others => '1');
@@ -137,7 +127,7 @@ begin
           next_start_spi   <= '1';
           next_data_to_spi <= read_ch0;
         end if;
-        
+
       when write_ch0 =>
         if spi_busy = '0' then
           next_state <= wait_conv_ch0;
@@ -170,7 +160,7 @@ begin
           next_start_spi   <= '1';
           next_data_to_spi <= read_ch1;
         end if;
-        
+
       when write_ch1 =>
         if spi_busy = '0' then
           next_state <= wait_conv_ch1;
@@ -203,7 +193,7 @@ begin
           next_start_spi   <= '1';
           next_data_to_spi <= read_ch2;
         end if;
-        
+
       when write_ch2 =>
         if spi_busy = '0' then
           next_state <= wait_conv_ch2;
@@ -236,7 +226,7 @@ begin
           next_start_spi   <= '1';
           next_data_to_spi <= read_ch3;
         end if;
-        
+
       when write_ch3 =>
         if spi_busy = '0' then
           next_state <= wait_conv_ch3;
@@ -269,7 +259,7 @@ begin
           next_start_spi   <= '1';
           next_data_to_spi <= read_ch0;
         end if;
-        
+
       when read_conv_ch3 =>
         if spi_busy = '0' then
           next_state <= wait_start;
@@ -277,7 +267,7 @@ begin
           next_state          <= read_conv_ch3;
           next_out_reg_en_bus <= "1000";
         end if;
-        
+
     end case;
   end process;
 

@@ -23,16 +23,6 @@ use IEEE.STD_LOGIC_1164.all;
 use IEEE.STD_LOGIC_ARITH.all;
 use IEEE.STD_LOGIC_UNSIGNED.all;
 
-
--- Uncomment the following library declaration if using
--- arithmetic functions with Signed or Unsigned values
---use IEEE.NUMERIC_STD.ALL;
-
--- Uncomment the following library declaration if instantiating
--- any Xilinx primitives in this code.
---library UNISIM;
---use UNISIM.VComponents.all;
-
 library lsst_reb;
 use lsst_reb.basic_elements.all;
 
@@ -56,65 +46,6 @@ end dual_ads1118_top;
 
 architecture Behavioral of dual_ads1118_top is
 
-  component dual_ads1118_controller_fsm
-    port (
-      clk            : in  std_logic;
-      reset          : in  std_logic;
-      start_read     : in  std_logic;
-      spi_busy       : in  std_logic;
-      device_busy    : in  std_logic;
-      start_spi      : out std_logic;
-      link_busy      : out std_logic;
-      data_to_spi    : out std_logic_vector(15 downto 0);
-      out_reg_en_bus : out std_logic_vector(3 downto 0));
-  end component;
-
-  component SPI_read_write_noss is
-    generic (clk_divide  : integer := 4;
-             num_bit_max : integer := 32);
-    port (
-      clk          : in  std_logic;
-      reset        : in  std_logic;
-      start_write  : in  std_logic;
-      d_to_slave   : in  std_logic_vector(num_bit_max - 1 downto 0);
-      miso         : in  std_logic;
-      mosi         : out std_logic;
-      ss           : out std_logic;
-      sclk         : out std_logic;
-      busy         : out std_logic;
-      d_from_slave : out std_logic_vector(num_bit_max - 1 downto 0)
-      );
-  end component;
-
-  component generic_reg_ce_init is
-    generic (width : integer := 15);
-    port (
-      reset    : in  std_logic;         -- syncronus reset
-      clk      : in  std_logic;         -- clock
-      ce       : in  std_logic;         -- clock enable
-      init     : in  std_logic;  -- signal to reset the reg (active high)
-      data_in  : in  std_logic_vector(width downto 0);   -- data in
-      data_out : out std_logic_vector(width downto 0));  -- data out
-  end component;
-
-  component demux_1_2_clk_def_1
-    port (
-      reset    : in  std_logic;
-      clk      : in  std_logic;
-      data_in  : in  std_logic;
-      selector : in  std_logic;
-      data_out : out std_logic_vector(1 downto 0));
-  end component;
-
-  component ff_ce is
-    port (
-      reset    : in  std_logic;         -- syncronus reset
-      clk      : in  std_logic;         -- clock
-      data_in  : in  std_logic;         -- data in
-      ce       : in  std_logic;         -- clock enable
-      data_out : out std_logic);        -- data out
-  end component;
-
   signal spi_busy          : std_logic;
   signal start_spi         : std_logic;
   signal device_select_int : std_logic;
@@ -131,7 +62,7 @@ architecture Behavioral of dual_ads1118_top is
 
 begin
 
-  dual_ads1118_controller_fsm_1 : dual_ads1118_controller_fsm
+  dual_ads1118_controller_fsm_1 : entity lsst_reb.dual_ads1118_controller_fsm
     port map (
       clk            => clk,
       reset          => reset,
@@ -143,7 +74,7 @@ begin
       data_to_spi    => data_to_spi_16,
       out_reg_en_bus => out_reg_en_bus);
 
-  ff_ce_1 : ff_ce
+  ff_ce_1 : entity lsst_reb.ff_ce
     port map (
       reset    => reset,
       clk      => clk,
@@ -151,7 +82,7 @@ begin
       ce       => start_read,
       data_out => device_select_int);
 
-  SPI_read_write_noss_1 : SPI_read_write_noss
+  SPI_read_write_noss_1 : entity lsst_reb.SPI_read_write_noss
     generic map (
       clk_divide  => 10,
       num_bit_max => 32)
@@ -171,7 +102,7 @@ begin
 
   spi_out_reg_generate :
   for i in 0 to 3 generate
-    out_reg : generic_reg_ce_init
+    out_reg : entity lsst_reb.generic_reg_ce_init
       generic map(width => 31)
       port map (
         reset    => reset,
@@ -185,7 +116,7 @@ begin
 
 
 
-  ff_ce_mosi : ff_ce
+  ff_ce_mosi : entity lsst_reb.ff_ce
     port map (
       reset    => reset,
       clk      => clk,
@@ -193,7 +124,7 @@ begin
       ce       => '1',
       data_out => mosi);
 
-  ff_ce_miso : ff_ce
+  ff_ce_miso : entity lsst_reb.ff_ce
     port map (
       reset    => reset,
       clk      => clk,
@@ -201,7 +132,7 @@ begin
       ce       => '1',
       data_out => miso_int);
 
-  ff_ce_sckl : ff_ce
+  ff_ce_sckl : entity lsst_reb.ff_ce
     port map (
       reset    => reset,
       clk      => clk,
@@ -209,7 +140,7 @@ begin
       ce       => '1',
       data_out => sclk);
 
-  demux_1_2_clk_def_1_1 : demux_1_2_clk_def_1
+  demux_1_2_clk_def_1_1 : entity lsst_reb.demux_1_2_clk_def_1
     port map (
       reset    => reset,
       clk      => clk,
