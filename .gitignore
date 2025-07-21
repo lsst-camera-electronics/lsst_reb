@@ -7,3 +7,14 @@
 #vivado files
 *.jou
 *.log
+
+# Compiled source files
+*.o
+*.so
+*.pyc
+*.db
+*.swp
+*.db
+*.log
+*.vho
+*.xml
