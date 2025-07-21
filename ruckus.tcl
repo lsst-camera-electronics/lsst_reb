@@ -25,6 +25,7 @@ loadRuckusTcl "$::DIR_PATH/i2c"
 # loadRuckusTcl "$::DIR_PATH/dual_ldac_ad53xx" used on GREB
 # loadRuckusTcl "$::DIR_PATH/led_blink"
 loadRuckusTcl "$::DIR_PATH/look_at_me"
+# loadRuckusTcl "$::DIR_PATH/ltc2945_V_I_sensors" used on REB
 loadRuckusTcl "$::DIR_PATH/ltc2945_V_I_sensors_greb"
 loadRuckusTcl "$::DIR_PATH/max_11046_adc"
 loadRuckusTcl "$::DIR_PATH/multiboot"
