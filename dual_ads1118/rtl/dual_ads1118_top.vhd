@@ -24,7 +24,7 @@ use IEEE.STD_LOGIC_ARITH.all;
 use IEEE.STD_LOGIC_UNSIGNED.all;
 
 library lsst_reb;
-use lsst_reb.basic_elements.all;
+use lsst_reb.basic_elements_pkg.all;
 
 entity dual_ads1118_top is
 

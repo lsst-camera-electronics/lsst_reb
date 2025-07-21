@@ -23,7 +23,7 @@ use IEEE.STD_LOGIC_ARITH.ALL;
 use IEEE.STD_LOGIC_UNSIGNED.ALL;
 
 library lsst_reb;
-use lsst_reb.basic_elements.all;
+use lsst_reb.basic_elements_pkg.all;
 
 entity readadcs_v5 is
 

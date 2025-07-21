@@ -21,7 +21,7 @@ library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 
 library lsst_reb;
-use lsst_reb.basic_elements.all;
+use lsst_reb.basic_elements_pkg.all;
 
 entity adt7420_temp_multiread_4_top is
 

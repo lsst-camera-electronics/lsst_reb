@@ -1,7 +1,7 @@
 library IEEE;
 use IEEE.STD_LOGIC_1164.all;
 
-package basic_elements is
+package basic_elements_pkg is
 
   subtype word_32 is std_logic_vector (31 downto 0);
   type    array432 is array (3 downto 0) of word_32;
@@ -17,8 +17,8 @@ package basic_elements is
   type array28 is array (1 downto 0) of word_8;
   type array48 is array (3 downto 0) of word_8;
 
-end basic_elements;
+end basic_elements_pkg;
 
-package body basic_elements is
+package body basic_elements_pkg is
 
-end basic_elements;
+end basic_elements_pkg;

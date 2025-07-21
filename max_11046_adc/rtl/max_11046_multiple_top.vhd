@@ -23,7 +23,7 @@ use IEEE.STD_LOGIC_ARITH.all;
 use IEEE.STD_LOGIC_UNSIGNED.all;
 
 library lsst_reb;
-use lsst_reb.basic_elements.all;
+use lsst_reb.basic_elements_pkg.all;
 
 -- Uncomment the following library declaration if using
 -- arithmetic functions with Signed or Unsigned values

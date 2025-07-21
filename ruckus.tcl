@@ -12,6 +12,7 @@ if { [info exists ::env(OVERRIDE_SUBMODULE_LOCKS)] != 1 || $::env(OVERRIDE_SUBMO
 }
 
 # Load ruckus files
+loadRuckusTcl "$::DIR_PATH/basic_elements"
 loadRuckusTcl "$::DIR_PATH/ad7794_temp_sens"
 loadRuckusTcl "$::DIR_PATH/ADC_data_handler_v4"
 loadRuckusTcl "$::DIR_PATH/adt7420_multiread"
@@ -24,7 +25,6 @@ loadRuckusTcl "$::DIR_PATH/i2c"
 # loadRuckusTcl "$::DIR_PATH/dual_ldac_ad53xx" used on GREB
 # loadRuckusTcl "$::DIR_PATH/led_blink"
 loadRuckusTcl "$::DIR_PATH/look_at_me"
-loadRuckusTcl "$::DIR_PATH/LSST_basic_elements"
 loadRuckusTcl "$::DIR_PATH/ltc2945_V_I_sensors_greb"
 loadRuckusTcl "$::DIR_PATH/max_11046_adc"
 loadRuckusTcl "$::DIR_PATH/multiboot"
