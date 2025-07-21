@@ -1,34 +1,31 @@
 ----------------------------------------------------------------------------------
--- Company: 
--- Engineer: 
--- 
--- Create Date:    11:27:40 04/24/2017 
--- Design Name: 
--- Module Name:    REB_interrupt_top - Behavioral 
--- Project Name: 
--- Target Devices: 
--- Tool versions: 
--- Description: 
+-- Company:
+-- Engineer:
 --
--- Dependencies: 
+-- Create Date:    11:27:40 04/24/2017
+-- Design Name:
+-- Module Name:    REB_interrupt_top - Behavioral
+-- Project Name:
+-- Target Devices:
+-- Tool versions:
+-- Description:
 --
--- Revision: 
+-- Dependencies:
+--
+-- Revision:
 -- Revision 0.01 - File Created
--- Additional Comments: 
+-- Additional Comments:
 --
 ----------------------------------------------------------------------------------
 library IEEE;
 use IEEE.STD_LOGIC_1164.all;
 
 use ieee.std_logic_misc.all;
--- Uncomment the following library declaration if using
--- arithmetic functions with Signed or Unsigned values
---use IEEE.NUMERIC_STD.ALL;
 
--- Uncomment the following library declaration if instantiating
--- any Xilinx primitives in this code.
 library UNISIM;
 use UNISIM.VComponents.all;
+
+library lsst_reb;
 
 entity REB_interrupt_top is
   generic (
@@ -43,33 +40,11 @@ entity REB_interrupt_top is
     mask_bus_out      : out std_logic_vector(interrupt_bus_width-1 downto 0);
     interrupt_en_out  : out std_logic;
     interrupt_bus_out : out std_logic_vector(interrupt_bus_width-1 downto 0)
-    );  
+    );
 
 end REB_interrupt_top;
 
 architecture Behavioral of REB_interrupt_top is
-
-  component generic_reg_ce_init
-    generic (width : integer := 15);
-    port (
-      reset    : in  std_logic;         -- syncronus reset
-      clk      : in  std_logic;         -- clock
-      ce       : in  std_logic;         -- clock enable
-      init     : in  std_logic;  -- signal to reset the reg (active high)
-      data_in  : in  std_logic_vector(width downto 0);   -- data in
-      data_out : out std_logic_vector(width downto 0));  -- data out
-  end component;
-
-  component generic_reg_ce_init_1
-    generic (width : integer := 15);
-    port (
-      reset    : in  std_logic;         -- syncronus reset
-      clk      : in  std_logic;         -- clock
-      ce       : in  std_logic;         -- clock enable
-      init     : in  std_logic;  -- signal to reset the reg (active high)
-      data_in  : in  std_logic_vector(width downto 0);   -- data in
-      data_out : out std_logic_vector(width downto 0));  -- data out
-  end component;
 
   signal mask_bus_int         : std_logic_vector(interrupt_bus_width-1 downto 0);
   signal edge_in_bus          : std_logic_vector(interrupt_bus_width-1 downto 0);
@@ -82,7 +57,7 @@ architecture Behavioral of REB_interrupt_top is
 
 begin
 
-  mask_in_reg : generic_reg_ce_init_1
+  mask_in_reg : entity lsst_reb.generic_reg_ce_init_1
     generic map (width => interrupt_bus_width-1)
     port map (
       reset    => reset,
@@ -90,7 +65,7 @@ begin
       ce       => mask_bus_in_en,
       init     => '0',  -- signal to reset the reg (active high)
       data_in  => mask_bus_in,
-      data_out => mask_bus_int);        
+      data_out => mask_bus_int);
 
   mask_bus_out <= mask_bus_int;
 
@@ -118,7 +93,7 @@ begin
 
 
 
-  interrupt_out_reg : generic_reg_ce_init
+  interrupt_out_reg : entity lsst_reb.generic_reg_ce_init
     generic map (width => interrupt_bus_width-1)
     port map (
       reset    => reset,
@@ -126,7 +101,7 @@ begin
       ce       => '1',
       init     => '0',  -- signal to reset the reg (active high)
       data_in  => edge_out_bus,
-      data_out => interrupt_bus_out);        
+      data_out => interrupt_bus_out);
 
 end Behavioral;
 
