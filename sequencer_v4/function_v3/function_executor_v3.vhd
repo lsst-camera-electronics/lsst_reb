@@ -1,33 +1,24 @@
 ----------------------------------------------------------------------------------
--- Company: 
--- Engineer: 
--- 
--- Create Date:    18:31:40 04/10/2013 
--- Design Name: 
--- Module Name:    function_executor_v3 - Behavioral 
--- Project Name: 
--- Target Devices: 
--- Tool versions: 
--- Description: 
+-- Company:
+-- Engineer:
 --
--- Dependencies: 
+-- Create Date:    18:31:40 04/10/2013
+-- Design Name:
+-- Module Name:    function_executor_v3 - Behavioral
+-- Project Name:
+-- Target Devices:
+-- Tool versions:
+-- Description:
 --
--- Revision: 
+-- Dependencies:
+--
+-- Revision:
 -- Revision 0.01 - File Created
--- Additional Comments: 
+-- Additional Comments:
 --
 ----------------------------------------------------------------------------------
 library IEEE;
 use IEEE.STD_LOGIC_1164.all;
-
--- Uncomment the following library declaration if using
--- arithmetic functions with Signed or Unsigned values
---use IEEE.NUMERIC_STD.ALL;
-
--- Uncomment the following library declaration if instantiating
--- any Xilinx primitives in this code.
---library UNISIM;
---use UNISIM.VComponents.all;
 
 entity function_executor_v3 is
 
@@ -94,13 +85,13 @@ begin
       end if;
     end if;
   end process;
-  
+
   process (pres_state, fifo_empty, func_rep_cnt_end, func_inf_loop, func_stop,
            func_step, func_end, prog_end_opcode_int)
   begin
 
     -------------------- outputs defoult values --------------------
-    
+
     next_func_rep_cnt_init <= '0';
     next_fifo_read_en      <= '0';
     next_func_start        <= '0';
@@ -110,7 +101,7 @@ begin
     next_end_sequence      <= '0';
 
     case pres_state is
-      
+
        when wait_start =>
           if fifo_empty = '0' then
              next_state          <= start_func;
@@ -119,12 +110,12 @@ begin
              next_state          <= wait_start;
              next_sequencer_busy <= '0';
           end if;
-        
+
        when start_func =>
           next_state           <= func_exe;
           next_func_start      <= '1';
           next_func_rep_cnt_en <= '1';
-        
+
        when func_exe =>
           if func_end = '1' then
              if prog_end_opcode_int = '1' then
@@ -152,7 +143,7 @@ begin
        when func_rep =>
           next_state      <= func_exe;
           next_func_start <= '1';
-        
+
        when infinite_loop_run =>
           if    func_stop = '0' and func_step = '0' and func_end = '0' then
              next_state <= infinite_loop_run;
@@ -198,7 +189,7 @@ begin
              next_fifo_read_en <= '1';
              next_veto_out     <= '1';
           end if;
-        
+
        when empting_fifo =>
           if prog_end_opcode_int = '0' then
              next_state        <= empting_fifo;

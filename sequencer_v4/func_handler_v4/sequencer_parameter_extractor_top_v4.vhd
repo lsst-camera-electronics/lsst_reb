@@ -1,20 +1,20 @@
 ----------------------------------------------------------------------------------
--- Company: 
--- Engineer:  
--- 
--- Create Date:    17:09:59 06/21/2012 
--- Design Name: 
--- Module Name:    sequencer_parameter_extractor_v4 - Behavioral 
--- Project Name: 
--- Target Devices: 
--- Tool versions: 
--- Description: 
+-- Company:
+-- Engineer:
 --
--- Dependencies: 
+-- Create Date:    17:09:59 06/21/2012
+-- Design Name:
+-- Module Name:    sequencer_parameter_extractor_v4 - Behavioral
+-- Project Name:
+-- Target Devices:
+-- Tool versions:
+-- Description:
 --
--- Revision: 
+-- Dependencies:
+--
+-- Revision:
 -- Revision 0.01 - File Created
--- Additional Comments: 
+-- Additional Comments:
 --
 ----------------------------------------------------------------------------------
 library IEEE;
@@ -22,14 +22,7 @@ use IEEE.STD_LOGIC_1164.all;
 use IEEE.STD_LOGIC_ARITH.all;
 use IEEE.STD_LOGIC_UNSIGNED.all;
 
--- Uncomment the following library declaration if using
--- arithmetic functions with Signed or Unsigned values
---use IEEE.NUMERIC_STD.ALL;
-
--- Uncomment the following library declaration if instantiating
--- any Xilinx primitives in this code.
---library UNISIM;
---use UNISIM.VComponents.all;
+library lsst_reb;
 
 entity sequencer_parameter_extractor_top_v4 is
 
@@ -71,31 +64,6 @@ end sequencer_parameter_extractor_top_v4;
 
 architecture Behavioral of sequencer_parameter_extractor_top_v4 is
 
-
-  component parameter_extractor_fsm_v3 is
-    port (
-      clk                      : in  std_logic;
-      reset                    : in  std_logic;
-      start_sequence           : in  std_logic;
-      fifo_param_full          : in  std_logic;
-      op_code_error_reset      : in  std_logic;
-      program_mem_data         : in  std_logic_vector(31 downto 0);
-      data_from_stack          : in  std_logic_vector(31 downto 0);
-      ind_rep_mem_data_out     : in  std_logic_vector(23 downto 0);
-      ind_sub_add_mem_data_out : in  std_logic_vector (9 downto 0);
-      ind_sub_rep_mem_data_out : in  std_logic_vector (15 downto 0);
-      program_mem_init_add     : in  std_logic_vector(9 downto 0);
-      op_code_error            : out std_logic;
-      fifo_param_write         : out std_logic;
-      sub_stack_w_en           : out std_logic;
-      ind_sub_rep_flag         : out std_logic;
-      fifo_mux_sel             : out std_logic_vector(1 downto 0);
-      sub_stack_add            : out std_logic_vector(3 downto 0);
-      sub_rep_cnt              : out std_logic_vector(15 downto 0);
-      program_mem_add          : out std_logic_vector(9 downto 0)
-      );
-  end component;
-
   component generic_single_port_ram is
     generic(
       data_width : integer;
@@ -120,7 +88,7 @@ architecture Behavioral of sequencer_parameter_extractor_top_v4 is
       ram_data_in    : in  std_logic_vector(data_width-1 downto 0);
       ram_data_out_1 : out std_logic_vector(data_width-1 downto 0);
       ram_data_out_2 : out std_logic_vector(data_width-1 downto 0)
-      );          
+      );
   end component;
 
   component dual_port_ram_ip
@@ -183,7 +151,6 @@ architecture Behavioral of sequencer_parameter_extractor_top_v4 is
       );
   end component;
 
-
   component seq_param_fifo_v3
     port (
       clk   : in  std_logic;
@@ -197,39 +164,6 @@ architecture Behavioral of sequencer_parameter_extractor_top_v4 is
       );
   end component;
 
-  component generic_reg_ce_init is
-    generic (width : integer := 15);
-    port (
-      reset    : in  std_logic;         -- syncronus reset
-      clk      : in  std_logic;         -- clock
-      ce       : in  std_logic;         -- clock enable
-      init     : in  std_logic;  -- signal to reset the reg (active high)
-      data_in  : in  std_logic_vector(width downto 0);   -- data in
-      data_out : out std_logic_vector(width downto 0));  -- data out
-  end component;
-
-  component generic_mux_bus_4_1_clk
-    generic (
-      width : integer := 32);
-    port (
-      reset    : in  std_logic;
-      clk      : in  std_logic;
-      selector : in  std_logic_vector(1 downto 0);
-      bus_in_0 : in  std_logic_vector(width-1 downto 0);
-      bus_in_1 : in  std_logic_vector(width-1 downto 0);
-      bus_in_2 : in  std_logic_vector(width-1 downto 0);
-      bus_in_3 : in  std_logic_vector(width-1 downto 0);
-      bus_out  : out std_logic_vector(width-1 downto 0));
-  end component;
-
-  component ff_ce
-    port (
-      reset    : in  std_logic;
-      clk      : in  std_logic;
-      data_in  : in  std_logic;
-      ce       : in  std_logic;
-      data_out : out std_logic);
-  end component;
 
   signal fifo_param_full          : std_logic;
   signal prog_mem_data_out        : std_logic_vector(31 downto 0);
@@ -256,7 +190,7 @@ architecture Behavioral of sequencer_parameter_extractor_top_v4 is
 
 begin
 
-  parameter_extractor_fsm_v3_0 : parameter_extractor_fsm_v3
+  parameter_extractor_fsm_v3_0 : entity lsst_reb.parameter_extractor_fsm_v3
     port map (
       clk                      => clk,
       reset                    => reset,
@@ -279,7 +213,7 @@ begin
       program_mem_add          => program_mem_rd_add
       );
 
-  function_stack : generic_single_port_ram
+  function_stack : entity lsst_reb.generic_single_port_ram
     generic map(
       data_width => 32,
       add_width  => 4)
@@ -288,8 +222,8 @@ begin
       ram_wr_en    => sub_stack_w_en,
       ram_add      => sub_stack_add,
       ram_data_in  => stack_data_in,
-      ram_data_out => data_from_stack); 
-  
+      ram_data_out => data_from_stack);
+
   program_memory : dual_port_ram_ip
     port map (
       a    => seq_mem_w_add,
@@ -300,7 +234,7 @@ begin
       spo  => prog_mem_redbk,
       dpo  => prog_mem_data_out
       );
-  
+
   indirect_func_mem : dual_port_ram_4_4
     port map (
       a    => seq_mem_w_add(3 downto 0),
@@ -311,7 +245,7 @@ begin
       spo  => ind_func_mem_redbk,
       dpo  => ind_func_mem_data_out
       );
-  
+
   indirect_rep_mem : dual_port_ram_24_4
     port map (
       a    => seq_mem_w_add(3 downto 0),
@@ -323,7 +257,7 @@ begin
       dpo  => ind_rep_mem_data_out
       );
 
-  generic_mux_bus_4_1_clk_0 : generic_mux_bus_4_1_clk
+  generic_mux_bus_4_1_clk_0 : entity lsst_reb.generic_mux_bus_4_1_clk
     generic map (
       width => 32)
     port map (
@@ -382,6 +316,6 @@ begin
   prog_mem_all_ind  <= prog_mem_data_out(31 downto 28) & ind_func_mem_data_out & ind_rep_mem_data_out;
 
   op_code_error_add <= program_mem_rd_add;
-  
+
 end Behavioral;
 

@@ -1,37 +1,29 @@
 ----------------------------------------------------------------------------------
--- Company: 
--- Engineer: 
--- 
--- Create Date:    15:31:10 06/20/2012 
--- Design Name: 
--- Module Name:    parameter_extractor_fsm_v3 - Behavioral 
--- Project Name: 
--- Target Devices: 
--- Tool versions: 
--- Description: 
+-- Company:
+-- Engineer:
 --
--- Dependencies: 
+-- Create Date:    15:31:10 06/20/2012
+-- Design Name:
+-- Module Name:    parameter_extractor_fsm_v3 - Behavioral
+-- Project Name:
+-- Target Devices:
+-- Tool versions:
+-- Description:
 --
--- Revision: 
+-- Dependencies:
+--
+-- Revision:
 -- Revision 0.01 - File Created
--- Additional Comments: 
+-- Additional Comments:
 --
 ----------------------------------------------------------------------------------
 library IEEE;
 use IEEE.STD_LOGIC_1164.all;
 use IEEE.STD_LOGIC_ARITH.all;
 use IEEE.STD_LOGIC_UNSIGNED.all;
-use work.sequencer_v3_package.all;
 
-
--- Uncomment the following library declaration if using
--- arithmetic functions with Signed or Unsigned values
---use IEEE.NUMERIC_STD.ALL;
-
--- Uncomment the following library declaration if instantiating
--- any Xilinx primitives in this code.
---library UNISIM;
---use UNISIM.VComponents.all;
+library lsst_reb;
+use lsst_reb.sequencer_v3_package.all;
 
 entity parameter_extractor_fsm_v3 is
 
@@ -86,7 +78,7 @@ architecture Behavioral of parameter_extractor_fsm_v3 is
   signal func_call_rep       : std_logic_vector(23 downto 0);
   signal jump_to_add_rep     : std_logic_vector(15 downto 0);
 
-  
+
 
 begin
 
@@ -104,7 +96,7 @@ begin
         sub_stack_add_int   <= (others => '0');
         program_mem_add_int <= (others => '0');
         sub_rep_cnt_int     <= (others => '0');
-        
+
       else
         pres_state          <= next_state;
         op_code_error       <= next_op_code_error;
@@ -126,7 +118,7 @@ begin
   begin
 
     -------------------- outputs defoult values --------------------
-    
+
     next_op_code_error    <= '0';
     next_fifo_param_write <= '0';
     next_sub_stack_w_en   <= '0';
@@ -137,7 +129,7 @@ begin
     next_sub_rep_cnt      <= sub_rep_cnt_int;
 
     case pres_state is
-      
+
        when wait_start =>
           if start_sequence = '0' then
              next_state           <= wait_start;
@@ -147,7 +139,7 @@ begin
              next_program_mem_add <= program_mem_init_add;
              next_state <= op_code_eval;
           end if;
-        
+
        when op_code_eval =>
           if fifo_param_full = '1' then
              next_state <= op_code_eval;
@@ -232,18 +224,18 @@ begin
                 next_op_code_error <= '1';
              end if;
           end if;
-        
+
        when simple_func_op =>
           next_state            <= write_fifo;
           next_fifo_param_write <= '1';
-        
+
        when write_fifo =>
           next_state           <= wait_fifo;
           next_program_mem_add <= program_mem_add_int + 1;
-        
+
        when wait_fifo =>
           next_state <= op_code_eval;
-        
+
        when sub_jump =>
           next_state           <= op_code_eval;
           next_program_mem_add <= program_mem_data(25 downto 16);
@@ -255,13 +247,13 @@ begin
           next_program_mem_add <= ind_sub_add_mem_data_out;
           next_sub_stack_add   <= sub_stack_add_int + 1;
           next_sub_rep_cnt     <= (others => '0');
-        
+
        when ind_sub_all_jump =>
           next_state           <= op_code_eval;
           next_program_mem_add <= ind_sub_add_mem_data_out;
           next_sub_stack_add   <= sub_stack_add_int + 1;
           next_sub_rep_cnt     <= (others => '0');
-        
+
        when trailer_op =>
           next_state           <= rep_sub;
           next_program_mem_add <= data_from_stack(29 downto 20);
@@ -277,11 +269,11 @@ begin
        when all_ind_call =>
           next_state            <= write_fifo;
           next_fifo_param_write <= '1';
-        
+
        when rep_sub =>
           if data_from_stack(30) = '0' then
              if program_mem_data(15 downto 0) = data_from_stack(15 downto 0) then
-                next_state       <= write_fifo; 
+                next_state       <= write_fifo;
                 next_sub_rep_cnt <= (others => '0');
              else
                 next_state       <= op_code_eval;
@@ -304,7 +296,7 @@ begin
              next_state         <= op_code_error_state;
              next_op_code_error <= '1';
           end if;
-        
+
     end case;
   end process;
 
@@ -314,6 +306,6 @@ begin
   op_code         <= program_mem_data(31 downto 28);
   func_call_rep   <= program_mem_data(23 downto 0);
   jump_to_add_rep <= program_mem_data(15 downto 0);
-  
+
 end Behavioral;
 
