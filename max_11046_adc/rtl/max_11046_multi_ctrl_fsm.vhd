@@ -1,36 +1,26 @@
 ----------------------------------------------------------------------------------
--- Company: 
--- Engineer: 
--- 
--- Create Date:    19:48:09 05/07/2016 
--- Design Name: 
--- Module Name:    max_11046_multi_ctrl_fsm - Behavioral 
--- Project Name: 
--- Target Devices: 
--- Tool versions: 
--- Description: 
+-- Company:
+-- Engineer:
 --
--- Dependencies: 
+-- Create Date:    19:48:09 05/07/2016
+-- Design Name:
+-- Module Name:    max_11046_multi_ctrl_fsm - Behavioral
+-- Project Name:
+-- Target Devices:
+-- Tool versions:
+-- Description:
 --
--- Revision: 
+-- Dependencies:
+--
+-- Revision:
 -- Revision 0.01 - File Created
--- Additional Comments: 
+-- Additional Comments:
 --
 ----------------------------------------------------------------------------------
 library IEEE;
 use IEEE.STD_LOGIC_1164.all;
 use IEEE.STD_LOGIC_ARITH.all;
 use IEEE.STD_LOGIC_UNSIGNED.all;
-
-
--- Uncomment the following library declaration if using
--- arithmetic functions with Signed or Unsigned values
---use IEEE.NUMERIC_STD.ALL;
-
--- Uncomment the following library declaration if instantiating
--- any Xilinx primitives in this code.
---library UNISIM;
---use UNISIM.VComponents.all;
 
 entity max_11046_multi_ctrl_fsm is
 
@@ -58,7 +48,7 @@ end max_11046_multi_ctrl_fsm;
 
 architecture Behavioural of max_11046_multi_ctrl_fsm is
 
-  type state_type is (wait_start,       -- wait_chip_up_read, 
+  type state_type is (wait_start,       -- wait_chip_up_read,
                       wait_conv, wait_EOC_0, wait_EOC_1,
                       wait_ch1, read_ch1, wait_ch2, read_ch2,
                       wait_ch3, read_ch3, wait_ch4, read_ch4,
@@ -94,7 +84,7 @@ architecture Behavioural of max_11046_multi_ctrl_fsm is
   constant integration_time   : integer := 2500;
   constant wait_data_time     : integer := 10;
   constant read_data_time     : integer := 10;
-  
+
 
 begin  -- Behavioural
 
@@ -215,7 +205,7 @@ begin  -- Behavioural
 
 
 -- NUOVO
-        
+
       when wait_ch1 =>
         if cnt_1 = wait_data_time then
           next_state <= read_ch1;

@@ -1,36 +1,26 @@
 ----------------------------------------------------------------------------------
--- Company: 
--- Engineer: 
--- 
--- Create Date:    17:09:09 18/02/2016 
--- Design Name: 
--- Module Name:    max_11046ctrl_fsm - Behavioral 
--- Project Name: 
--- Target Devices: 
--- Tool versions: 
--- Description: 
+-- Company:
+-- Engineer:
 --
--- Dependencies: 
+-- Create Date:    17:09:09 18/02/2016
+-- Design Name:
+-- Module Name:    max_11046ctrl_fsm - Behavioral
+-- Project Name:
+-- Target Devices:
+-- Tool versions:
+-- Description:
 --
--- Revision: 
+-- Dependencies:
+--
+-- Revision:
 -- Revision 0.01 - File Created
--- Additional Comments: 
+-- Additional Comments:
 --
 ----------------------------------------------------------------------------------
 library IEEE;
 use IEEE.STD_LOGIC_1164.all;
 use IEEE.STD_LOGIC_ARITH.all;
 use IEEE.STD_LOGIC_UNSIGNED.all;
-
-
--- Uncomment the following library declaration if using
--- arithmetic functions with Signed or Unsigned values
---use IEEE.NUMERIC_STD.ALL;
-
--- Uncomment the following library declaration if instantiating
--- any Xilinx primitives in this code.
---library UNISIM;
---use UNISIM.VComponents.all;
 
 entity max_11046_ctrl_fsm is
 
@@ -82,7 +72,7 @@ architecture Behavioural of max_11046_ctrl_fsm is
   constant integration_time   : integer := 2500;
   constant wait_data_time     : integer := 10;
   constant read_data_time     : integer := 10;
-  
+
 
 begin  -- Behavioural
 
@@ -193,150 +183,6 @@ begin  -- Behavioural
         end if;
 
 
-
-
--- VECCHIO
-
-        --when wait_ch1 =>
-        --  if cnt_1 = 3 then
-        --    next_state          <= read_ch1;
-        --    next_CS             <= '0';
-        --    next_RD             <= '1';
-        --    next_cnt_1          <= 0;
-        --    next_out_reg_en_bus <= "00000001";
-        --  else
-        --    next_state <= wait_ch1;
-        --    next_CS    <= '0';
-        --    next_RD    <= '0';
-        --    next_cnt_1 <= cnt_1 + 1;
-        --  end if;
-
-        --when read_ch1 =>
-        --  next_state <= wait_ch2;
-        --  next_CS    <= '0';
-        --  next_RD    <= '0';
-        --  next_cnt_1 <= cnt_1 + 1;
-
-      --when wait_ch2 =>
-      --  if cnt_1 = 3 then
-      --    next_state          <= read_ch2;
-      --    next_CS             <= '0';
-      --    next_RD             <= '1';
-      --    next_cnt_1          <= 0;
-      --    next_out_reg_en_bus <= "00000010";
-      --  else
-      --    next_state <= wait_ch2;
-      --    next_CS    <= '0';
-      --    next_RD    <= '0';
-      --    next_cnt_1 <= cnt_1 + 1;
-      --  end if;
-
-      --when read_ch2 =>
-      --  next_state <= wait_ch3;
-      --  next_CS    <= '0';
-      --  next_RD    <= '0';
-      --  next_cnt_1 <= cnt_1 + 1;
-
-      --when wait_ch3 =>
-      --  if cnt_1 = 3 then
-      --    next_state          <= read_ch3;
-      --    next_CS             <= '0';
-      --    next_RD             <= '1';
-      --    next_cnt_1          <= 0;
-      --    next_out_reg_en_bus <= "00000100";
-      --  else
-      --    next_state <= wait_ch3;
-      --    next_CS    <= '0';
-      --    next_RD    <= '0';
-      --    next_cnt_1 <= cnt_1 + 1;
-      --  end if;
-
-      --when read_ch3 =>
-      --  next_state <= wait_ch4;
-      --  next_CS    <= '0';
-      --  next_RD    <= '0';
-      --  next_cnt_1 <= cnt_1 + 1;
-
-      --when wait_ch4 =>
-      --  if cnt_1 = 3 then
-      --    next_state          <= read_ch4;
-      --    next_CS             <= '0';
-      --    next_RD             <= '1';
-      --    next_cnt_1          <= 0;
-      --    next_out_reg_en_bus <= "00001000";
-      --  else
-      --    next_state <= wait_ch4;
-      --    next_CS    <= '0';
-      --    next_RD    <= '0';
-      --    next_cnt_1 <= cnt_1 + 1;
-      --  end if;
-
-      --when read_ch4 =>
-      --  next_state <= wait_ch5;
-      --  next_CS    <= '0';
-      --  next_RD    <= '0';
-      --  next_cnt_1 <= cnt_1 + 1;
-
-      --when wait_ch5 =>
-      --  if cnt_1 = 3 then
-      --    next_state          <= read_ch5;
-      --    next_CS             <= '0';
-      --    next_RD             <= '1';
-      --    next_cnt_1          <= 0;
-      --    next_out_reg_en_bus <= "00010000";
-      --  else
-      --    next_state <= wait_ch5;
-      --    next_CS    <= '0';
-      --    next_RD    <= '0';
-      --    next_cnt_1 <= cnt_1 + 1;
-      --  end if;
-
-      --when read_ch5 =>
-      --  next_state <= wait_ch6;
-      --  next_CS    <= '0';
-      --  next_RD    <= '0';
-      --  next_cnt_1 <= cnt_1 + 1;
-
-      --when wait_ch6 =>
-      --  if cnt_1 = 3 then
-      --    next_state          <= read_ch6;
-      --    next_CS             <= '0';
-      --    next_RD             <= '1';
-      --    next_cnt_1          <= 0;
-      --    next_out_reg_en_bus <= "00100000";
-      --  else
-      --    next_state <= wait_ch6;
-      --    next_CS    <= '0';
-      --    next_RD    <= '0';
-      --    next_cnt_1 <= cnt_1 + 1;
-      --  end if;
-
-      --when read_ch6 =>
-      --  next_state <= wait_ch7;
-      --  next_CS    <= '0';
-      --  next_RD    <= '0';
-      --  next_cnt_1 <= cnt_1 + 1;
-
-      --when wait_ch7 =>
-      --  if cnt_1 = 3 then
-      --    next_state          <= read_ch7;
-      --    next_CS             <= '0';
-      --    next_RD             <= '1';
-      --    next_cnt_1          <= 0;
-      --    next_out_reg_en_bus <= "01000000";
-      --  else
-      --    next_state <= wait_ch7;
-      --    next_CS    <= '0';
-      --    next_RD    <= '0';
-      --    next_cnt_1 <= cnt_1 + 1;
-      --  end if;
-
-      --when read_ch7 =>
-      --  next_state <= wait_ch8;
-      --  next_CS    <= '0';
-      --  next_RD    <= '0';
-      --  next_cnt_1 <= cnt_1 + 1;
-
       when wait_ch8 =>
         if cnt_1 = wait_data_time then
           next_state          <= wait_start;
@@ -354,10 +200,6 @@ begin  -- Behavioural
         end if;
 
 
-
-
--- NUOVO
-        
       when wait_ch1 =>
         if cnt_1 = wait_data_time then
           next_state <= read_ch1;
@@ -546,12 +388,7 @@ begin  -- Behavioural
           next_cnt   <= cnt + 1;
         end if;
 
-        
-        
-
-
-
-when wait_ch7 =>
+      when wait_ch7 =>
         if cnt_1 = wait_data_time then
           next_state <= read_ch7;
           next_CS    <= '0';
@@ -582,165 +419,6 @@ when wait_ch7 =>
         end if;
 
 
-
-
-        
-
-        --when wait_ch3 =>
-        --  if cnt_1 = wait_data_time then
-        --    next_state <= read_ch3;
-        --    next_CS    <= '0';
-        --    next_RD    <= '1';
-        --    next_cnt_1 <= 0;
-        --  else
-        --    next_state          <= wait_ch3;
-        --    next_CS             <= '0';
-        --    next_RD             <= '0';
-        --    next_out_reg_en_bus <= "00000100";
-        --    next_cnt_1          <= cnt_1 + 1;
-        --  end if;
-
-        --when read_ch3 =>
-        --  if cnt = read_data_time then
-        --    next_state <= wait_ch4;
-        --    next_CS    <= '0';
-        --    next_RD    <= '0';
-        --    next_cnt   <= 0;
-        --    next_cnt_1 <= cnt_1 + 1;
-        --  else
-        --    next_state <= read_ch3;
-        --    next_CS    <= '0';
-        --    next_RD    <= '1';
-        --    next_cnt   <= cnt + 1;
-        --  end if;
-
-        --when wait_ch4 =>
-        --  if cnt_1 = wait_data_time then
-        --    next_state <= read_ch4;
-        --    next_CS    <= '0';
-        --    next_RD    <= '1';
-        --    next_cnt_1 <= 0;
-        --  else
-        --    next_state          <= wait_ch4;
-        --    next_CS             <= '0';
-        --    next_RD             <= '0';
-        --    next_out_reg_en_bus <= "00001000";
-        --    next_cnt_1          <= cnt_1 + 1;
-        --  end if;
-
-        --when read_ch4 =>
-        --  if cnt = read_data_time then
-        --    next_state <= wait_ch5;
-        --    next_CS    <= '0';
-        --    next_RD    <= '0';
-        --    next_cnt   <= 0;
-        --    next_cnt_1 <= cnt_1 + 1;
-        --  else
-        --    next_state <= read_ch4;
-        --    next_CS    <= '0';
-        --    next_RD    <= '1';
-        --    next_cnt   <= cnt + 1;
-        --  end if;
-
-        --when wait_ch5 =>
-        --  if cnt_1 = wait_data_time then
-        --    next_state <= read_ch5;
-        --    next_CS    <= '0';
-        --    next_RD    <= '1';
-        --    next_cnt_1 <= 0;
-        --  else
-        --    next_state          <= wait_ch5;
-        --    next_CS             <= '0';
-        --    next_RD             <= '0';
-        --    next_out_reg_en_bus <= "00010000";
-        --    next_cnt_1          <= cnt_1 + 1;
-        --  end if;
-
-        --when read_ch5 =>
-        --  if cnt = read_data_time then
-        --    next_state <= wait_ch6;
-        --    next_CS    <= '0';
-        --    next_RD    <= '0';
-        --    next_cnt   <= 0;
-        --    next_cnt_1 <= cnt_1 + 1;
-        --  else
-        --    next_state <= read_ch5;
-        --    next_CS    <= '0';
-        --    next_RD    <= '1';
-        --    next_cnt   <= cnt + 1;
-        --  end if;
-
-        --when wait_ch6 =>
-        --  if cnt_1 = wait_data_time then
-        --    next_state <= read_ch6;
-        --    next_CS    <= '0';
-        --    next_RD    <= '1';
-        --    next_cnt_1 <= 0;
-        --  else
-        --    next_state          <= wait_ch6;
-        --    next_CS             <= '0';
-        --    next_RD             <= '0';
-        --    next_out_reg_en_bus <= "00100000";
-        --    next_cnt_1          <= cnt_1 + 1;
-        --  end if;
-
-        --when read_ch6 =>
-        --  if cnt = read_data_time then
-        --    next_state <= wait_ch7;
-        --    next_CS    <= '0';
-        --    next_RD    <= '0';
-        --    next_cnt   <= 0;
-        --    next_cnt_1 <= cnt_1 + 1;
-        --  else
-        --    next_state <= read_ch6;
-        --    next_CS    <= '0';
-        --    next_RD    <= '1';
-        --    next_cnt   <= cnt + 1;
-        --  end if;
-
-        --when wait_ch7 =>
-        --  if cnt_1 = wait_data_time then
-        --    next_state <= read_ch7;
-        --    next_CS    <= '0';
-        --    next_RD    <= '1';
-        --    next_cnt_1 <= 0;
-        --  else
-        --    next_state          <= wait_ch7;
-        --    next_CS             <= '0';
-        --    next_RD             <= '0';
-        --    next_out_reg_en_bus <= "01000000";
-        --    next_cnt_1          <= cnt_1 + 1;
-        --  end if;
-
-        --when read_ch7 =>
-        --  if cnt = read_data_time then
-        --    next_state <= wait_ch8;
-        --    next_CS    <= '0';
-        --    next_RD    <= '0';
-        --    next_cnt   <= 0;
-        --    next_cnt_1 <= cnt_1 + 1;
-        --  else
-        --    next_state <= read_ch7;
-        --    next_CS    <= '0';
-        --    next_RD    <= '1';
-        --    next_cnt   <= cnt + 1;
-        --  end if;
-
-        --when wait_ch8 =>
-        --  if cnt_1 = wait_data_time then
-        --    next_state <= wait_start;
-        --    next_CS    <= '1';
-        --    next_RD    <= '1';
-        --    next_SHDN  <= '1';
-        --    next_cnt_1 <= 0;
-        --  else
-        --    next_state          <= wait_ch8;
-        --    next_CS             <= '0';
-        --    next_RD             <= '0';
-        --    next_out_reg_en_bus <= "10000000";
-        --    next_cnt_1          <= cnt_1 + 1;
-        --  end if;
-
       when wait_chip_up_write =>
         if cnt_1 = 100 then
           next_state    <= write_data;
@@ -768,9 +446,6 @@ when wait_ch7 =>
         end if;
 
     end case;
-
-
-
 
   end process;
 end Behavioural;
