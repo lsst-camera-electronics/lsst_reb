@@ -1,0 +1,9 @@
+# dumb mac files
+.DS_Store
+
+# temporary emacs files
+*~
+
+#vivado files
+*.jou
+*.log
