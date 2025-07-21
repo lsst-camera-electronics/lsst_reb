@@ -28,6 +28,7 @@ loadRuckusTcl "$::DIR_PATH/look_at_me"
 # loadRuckusTcl "$::DIR_PATH/ltc2945_V_I_sensors" used on REB
 loadRuckusTcl "$::DIR_PATH/ltc2945_V_I_sensors_greb"
 loadRuckusTcl "$::DIR_PATH/max_11046_adc"
+# loadRuckusTcl "$::DIR_PATH/mon_xadc" Used by REB
 loadRuckusTcl "$::DIR_PATH/multiboot"
 loadRuckusTcl "$::DIR_PATH/onewire_iface_v2"
 loadRuckusTcl "$::DIR_PATH/seq_aligner_shifter"
