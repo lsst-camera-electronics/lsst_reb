@@ -20,17 +20,6 @@
 library IEEE;
 use IEEE.STD_LOGIC_1164.all;
 
-use work.ADC_data_handler_package.all;
-
--- Uncomment the following library declaration if using
--- arithmetic functions with Signed or Unsigned values
---use IEEE.NUMERIC_STD.ALL;
-
--- Uncomment the following library declaration if instantiating
--- any Xilinx primitives in this code.
---library UNISIM;
---use UNISIM.VComponents.all;
-
 library lsst_reb;
 use lsst_reb.basic_elements.all;
 
@@ -130,7 +119,7 @@ begin
   stretch_reset            <= reset or (not handler_busy);
   end_sequence_stretch_inv <= not end_sequence_stretch;
 
-  ADC_data_handler_fsm_v4_0 : lsst_reb.ADC_data_handler_fsm_v4
+  ADC_data_handler_fsm_v4_0 : entity lsst_reb.ADC_data_handler_fsm_v4
     port map (
       reset        => reset,
       clk          => clk,
@@ -153,7 +142,7 @@ begin
       );
 
 
-  end_seq_stretch : lsst_reb.ff_ce
+  end_seq_stretch : entity lsst_reb.ff_ce
     port map (
       reset    => stretch_reset,
       clk      => clk,
@@ -162,7 +151,7 @@ begin
       data_out => end_sequence_stretch
       );
 
-  sel_ccd_reg : lsst_reb.generic_reg_ce_init_1
+  sel_ccd_reg : entity lsst_reb.generic_reg_ce_init_1
     generic map (
       width => 2)
     port map(
@@ -174,7 +163,7 @@ begin
       data_out => ccd_sel);
 
 
-  trigger_counter : lsst_reb.generic_counter_comparator_ce_init
+  trigger_counter : entity lsst_reb.generic_counter_comparator_ce_init
     generic map (
       length_cnt => 31)
     port map(
@@ -198,7 +187,7 @@ begin
 --      data_in  => image_size,
 --      data_out => image_size_out_int);
 
-  readadcs_v5_0_ccd1 : lsst_reb.readadcs_v5
+  readadcs_v5_0_ccd1 : entity lsst_reb.readadcs_v5
     generic map (
       conv_time        => 75,
       sclk_half_period => 2,
@@ -220,7 +209,7 @@ begin
       adc_ch       => ADC_CCD_1
       );
 
-  readadcs_v5_0_ccd2 : lsst_reb.readadcs_v5
+  readadcs_v5_0_ccd2 : entity lsst_reb.readadcs_v5
     generic map (
       conv_time        => 75,
       sclk_half_period => 2,
@@ -242,7 +231,7 @@ begin
       adc_ch       => ADC_CCD_2
       );
 
-  readadcs_v5_0_ccd3 : lsst_reb.readadcs_v5
+  readadcs_v5_0_ccd3 : entity lsst_reb.readadcs_v5
     generic map (
       conv_time        => 75,
       sclk_half_period => 2,
@@ -264,7 +253,7 @@ begin
       adc_ch       => ADC_CCD_3
       );
 
-  test_mode_ff : lsst_reb.ff_ce
+  test_mode_ff : entity lsst_reb.ff_ce
     port map (
 
       reset => reset,

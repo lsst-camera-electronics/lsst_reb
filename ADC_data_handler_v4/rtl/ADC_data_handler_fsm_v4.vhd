@@ -20,17 +20,6 @@
 library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 
-use work.ADC_data_handler_package.all;
-
--- Uncomment the following library declaration if using
--- arithmetic functions with Signed or Unsigned values
---use IEEE.NUMERIC_STD.ALL;
-
--- Uncomment the following library declaration if instantiating
--- any Xilinx primitives in this code.
---library UNISIM;
---use UNISIM.VComponents.all;
-
 library lsst_reb;
 use lsst_reb.basic_elements.all;
 
