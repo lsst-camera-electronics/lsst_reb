@@ -1,35 +1,26 @@
 ----------------------------------------------------------------------------------
--- Company: 
--- Engineer: 
--- 
--- Create Date:    11:44:24 04/17/2013 
--- Design Name: 
--- Module Name:    SPI_write - Behavioral 
--- Project Name: 
--- Target Devices: 
--- Tool versions: 
--- Description: 
+-- Company:
+-- Engineer:
 --
--- Dependencies: 
+-- Create Date:    11:44:24 04/17/2013
+-- Design Name:
+-- Module Name:    SPI_write - Behavioral
+-- Project Name:
+-- Target Devices:
+-- Tool versions:
+-- Description:
 --
--- Revision: 
+-- Dependencies:
+--
+-- Revision:
 -- Revision 0.01 - File Created
--- Additional Comments: 
+-- Additional Comments:
 --
 ----------------------------------------------------------------------------------
 library IEEE;
 use IEEE.STD_LOGIC_1164.all;
 use IEEE.STD_LOGIC_ARITH.all;
 use IEEE.STD_LOGIC_UNSIGNED.all;
-
--- Uncomment the following library declaration if using
--- arithmetic functions with Signed or Unsigned values
---use IEEE.NUMERIC_STD.ALL;
-
--- Uncomment the following library declaration if instantiating
--- any Xilinx primitives in this code.
---library UNISIM;
---use UNISIM.VComponents.all;
 
 entity SPI_write is
 
@@ -119,7 +110,7 @@ begin
         end if;
 
 -------------------------------------------------------- WRITE PROCEDURE  --------------------------------------------------------
-        
+
       when w_clk_0 =>
         if clk_cnt = clk_divide then
           next_state   <= w_clk_1;
@@ -132,7 +123,7 @@ begin
           next_clk_cnt <= clk_cnt + 1;
           next_ss      <= '0';
         end if;
-        
+
       when w_clk_1 =>
         if clk_cnt = clk_divide then
           if bit_cnt = num_bit_max then
@@ -176,7 +167,7 @@ begin
           next_state   <= end_clk_0;
           next_clk_cnt <= clk_cnt + 1;
         end if;
-        
+
       when end_clk_1 =>
         if clk_cnt = clk_divide then
           next_state   <= wait_start;
@@ -188,7 +179,7 @@ begin
         end if;
 
     end case;
-    
+
   end process;
 
 

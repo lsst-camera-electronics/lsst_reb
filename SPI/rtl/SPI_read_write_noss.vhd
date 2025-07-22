@@ -1,36 +1,26 @@
 ----------------------------------------------------------------------------------
--- Company: 
--- Engineer: 
--- 
--- Create Date:    17:20:59 08/07/2016 
--- Design Name: 
--- Module Name:    SPI_read_write_noss - Behavioral 
--- Project Name: 
--- Target Devices: 
--- Tool versions: 
--- Description: 
+-- Company:
+-- Engineer:
 --
--- Dependencies: 
+-- Create Date:    17:20:59 08/07/2016
+-- Design Name:
+-- Module Name:    SPI_read_write_noss - Behavioral
+-- Project Name:
+-- Target Devices:
+-- Tool versions:
+-- Description:
 --
--- Revision: 
+-- Dependencies:
+--
+-- Revision:
 -- Revision 0.01 - File Created
--- Additional Comments: 
+-- Additional Comments:
 --
 ----------------------------------------------------------------------------------
 library IEEE;
 use IEEE.STD_LOGIC_1164.all;
 use IEEE.STD_LOGIC_ARITH.all;
 use IEEE.STD_LOGIC_UNSIGNED.all;
-
-
--- Uncomment the following library declaration if using
--- arithmetic functions with Signed or Unsigned values
---use IEEE.NUMERIC_STD.ALL;
-
--- Uncomment the following library declaration if instantiating
--- any Xilinx primitives in this code.
---library UNISIM;
---use UNISIM.VComponents.all;
 
 entity SPI_read_write_noss is
 
@@ -53,9 +43,9 @@ end SPI_read_write_noss;
 
 architecture Behavioral of SPI_read_write_noss is
 
-  type state_type is (wait_start, ss_down, w_clk_0, w_clk_1, last_clk_0,  --last_clk_1, 
+  type state_type is (wait_start, ss_down, w_clk_0, w_clk_1, last_clk_0,  --last_clk_1,
                       end_ss_write
-                      ); 
+                      );
 
 
   signal pres_state, next_state : state_type;
@@ -156,7 +146,7 @@ begin
 
 
 -------------------------------------------------------- WRITE PROCEDURE  --------------------------------------------------------
-        
+
       when w_clk_0 =>
         if clk_cnt = clk_divide then
           next_state        <= w_clk_1;
@@ -172,7 +162,7 @@ begin
           next_ss      <= '0';
           next_sclk    <= '0';
         end if;
-        
+
       when w_clk_1 =>
         if clk_cnt = clk_divide then
           if bit_cnt = num_bit_max -1 then
@@ -233,7 +223,7 @@ begin
       --  next_ss      <= '1';
 
     end case;
-    
+
   end process;
 
 

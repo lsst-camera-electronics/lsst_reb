@@ -20,14 +20,9 @@
 library IEEE;
 use IEEE.STD_LOGIC_1164.all;
 
--- Uncomment the following library declaration if using
--- arithmetic functions with Signed or Unsigned values
 use IEEE.NUMERIC_STD.ALL;
 
--- Uncomment the following library declaration if instantiating
--- any Xilinx primitives in this code.
---library UNISIM;
---use UNISIM.VComponents.all;
+library lsst_reb;
 
 entity ad53xx_DAC_protection_top is
   generic (
@@ -55,28 +50,6 @@ entity ad53xx_DAC_protection_top is
 end ad53xx_DAC_protection_top;
 
 architecture Behavioral of ad53xx_DAC_protection_top is
-  component SPI_write is
-    generic (clk_divide  : integer := 4;
-             num_bit_max : integer := 16);
-    port (
-      clk         : in  std_logic;
-      reset       : in  std_logic;
-      start_write : in  std_logic;
-      d_to_slave  : in  std_logic_vector(num_bit_max - 1 downto 0);
-      mosi        : out std_logic;
-      ss          : out std_logic;
-      sclk        : out std_logic
-      );
-  end component;
-
-  component ff_ce is
-    port (
-      reset    : in  std_logic;         -- syncronus reset
-      clk      : in  std_logic;         -- clock
-      data_in  : in  std_logic;         -- data in
-      ce       : in  std_logic;         -- clock enable
-      data_out : out std_logic);        -- data out
-  end component;
 
   signal start_write_delay_1 : std_logic;
   signal d_to_slave_delay_1  : std_logic_vector(15 downto 0);
@@ -102,7 +75,7 @@ begin
   OD_th_int <= std_logic_vector(to_unsigned(OD_th, 12));
   RD_th_int <= std_logic_vector(to_unsigned(RD_th, 12));
 
-  SPI_write_0 : SPI_write
+  SPI_write_0 : entity lsst_reb.SPI_write
     generic map (clk_divide  => 2,
                  num_bit_max => 16)
     port map (
@@ -234,7 +207,7 @@ begin
   values_under_th <= values_under_th_i;
 
 
-  ldac_delay_ff_1 : ff_ce
+  ldac_delay_ff_1 : entity lsst_reb.ff_ce
     port map (
       reset    => reset,
       clk      => clk,
@@ -242,7 +215,7 @@ begin
       ce       => '1',
       data_out => ldac_delay_1);
 
-  ldac_delay_ff_2 : ff_ce
+  ldac_delay_ff_2 : entity lsst_reb.ff_ce
     port map (
       reset    => reset,
       clk      => clk,
