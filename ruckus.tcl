@@ -17,6 +17,7 @@ loadRuckusTcl "$::DIR_PATH/ad7794_temp_sens"
 loadRuckusTcl "$::DIR_PATH/ADC_data_handler_v4"
 loadRuckusTcl "$::DIR_PATH/adt7420_multiread"
 loadRuckusTcl "$::DIR_PATH/aspic_3_program"
+loadRuckusTcl "$::DIR_PATH/brs"
 # loadRuckusTcl "$::DIR_PATH/clk_2MHz_gen" used on REB
 loadRuckusTcl "$::DIR_PATH/dcm_user_clk"
 loadRuckusTcl "$::DIR_PATH/dual_ad53xx"
