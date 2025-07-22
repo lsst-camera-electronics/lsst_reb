@@ -1,33 +1,29 @@
 ----------------------------------------------------------------------------------
--- Company: 
--- Engineer: 
--- 
--- Create Date:    14:45:25 03/09/2017 
--- Design Name: 
--- Module Name:    sync_cmd_decoder_top - Behavioral 
--- Project Name: 
--- Target Devices: 
--- Tool versions: 
--- Description: 
+-- Company:
+-- Engineer:
 --
--- Dependencies: 
+-- Create Date:    14:45:25 03/09/2017
+-- Design Name:
+-- Module Name:    sync_cmd_decoder_top - Behavioral
+-- Project Name:
+-- Target Devices:
+-- Tool versions:
+-- Description:
 --
--- Revision: 
+-- Dependencies:
+--
+-- Revision:
 -- Revision 0.01 - File Created
--- Additional Comments: 
+-- Additional Comments:
 --
 ----------------------------------------------------------------------------------
 library IEEE;
 use IEEE.STD_LOGIC_1164.all;
 
--- Uncomment the following library declaration if using
--- arithmetic functions with Signed or Unsigned values
---use IEEE.NUMERIC_STD.ALL;
-
--- Uncomment the following library declaration if instantiating
--- any Xilinx primitives in this code.
 library UNISIM;
 use UNISIM.VComponents.all;
+
+library lsst_reb;
 
 entity sync_cmd_decoder_top is
 
@@ -54,58 +50,6 @@ end sync_cmd_decoder_top;
 
 architecture Behavioral of sync_cmd_decoder_top is
 
-  component sync_cmd_decoder is
-    port (
-      clk            : in  std_logic;
-      reset          : in  std_logic;
-      sync_cmd_en    : in  std_logic;
-      sync_cmd       : in  std_logic_vector(7 downto 0);
-      sync_cmd_start : out std_logic;
-      sync_cmd_stop  : out std_logic;
-      sync_cmd_step  : out std_logic;
-      sync_cmd_addr  : out std_logic_vector(4 downto 0)
-      );
-  end component;
-
-  component generic_reg_ce_init is
-    generic (width : integer := 15);
-    port (
-      reset    : in  std_logic;         -- syncronus reset
-      clk      : in  std_logic;         -- clock
-      ce       : in  std_logic;         -- clock enable
-      init     : in  std_logic;  -- signal to reset the reg (active high)
-      data_in  : in  std_logic_vector(width downto 0);   -- data in
-      data_out : out std_logic_vector(width downto 0));  -- data out
-  end component;
-
-  component pulse_stretcher
-    generic (
-      STRETCH_SIZE : positive);
-    port (
-      clk         : in  std_logic;
-      reset       : in  std_logic;
-      sig_in      : in  std_logic;
-      stretch_out : out std_logic);
-  end component;
-
-  component ff_ce is
-    port (
-      reset    : in  std_logic;         -- syncronus reset
-      clk      : in  std_logic;         -- clock
-      data_in  : in  std_logic;         -- data in
-      ce       : in  std_logic;         -- clock enable
-      data_out : out std_logic);        -- data out
-  end component;
-
-  component programmable_delay
-    port (
-      clk        : in  std_logic;
-      reset      : in  std_logic;
-      signal_in  : in  std_logic;
-      delay_in   : in  std_logic_vector(7 downto 0);
-      signal_out : out std_logic);
-  end component;
-
   signal sync_cmd_en_stretch : std_logic;
   signal sync_cmd_en_sync1   : std_logic;
   signal sync_cmd_en_sync2   : std_logic;
@@ -119,7 +63,7 @@ architecture Behavioral of sync_cmd_decoder_top is
 
 begin
 
-  sync_cmd_reg : generic_reg_ce_init
+  sync_cmd_reg : entity lsst_reb.generic_reg_ce_init
     generic map
     (width => 7)
     port map (
@@ -131,7 +75,7 @@ begin
       data_out => sync_cmd_latch);
 
   -- pulse stretcher
-  pulse_stretcher_A : pulse_stretcher
+  pulse_stretcher_A : entity lsst_reb.pulse_stretcher
     generic map (
       STRETCH_SIZE => 2)
     port map (
@@ -143,7 +87,7 @@ begin
   ff1_en : FD port map (D => sync_cmd_en_stretch, C => clk, Q => sync_cmd_en_sync1);
   ff2_en : FD port map (D => sync_cmd_en_sync1, C => clk, Q => sync_cmd_en_sync);
 
-  sync_cmd_decoder_1 : sync_cmd_decoder
+  sync_cmd_decoder_1 : entity lsst_reb.sync_cmd_decoder
     port map (
       clk          => clk,
       reset        => reset,
@@ -155,7 +99,7 @@ begin
       sync_cmd_addr  => sync_cmd_addr_int
       );
 
-  delay_register : generic_reg_ce_init
+  delay_register : entity lsst_reb.generic_reg_ce_init
     generic map
     (width => 7)
     port map (
@@ -166,7 +110,7 @@ begin
       data_in  => delay_in,
       data_out => delay_in_reg);
 
-  programmable_delay_start : programmable_delay
+  programmable_delay_start : entity lsst_reb.programmable_delay
     port map (
       clk        => clk,
       reset      => reset,
@@ -175,7 +119,7 @@ begin
       signal_out => sync_cmd_start_seq
       );
 
-  programmable_delay_step : programmable_delay
+  programmable_delay_step : entity lsst_reb.programmable_delay
     port map (
       clk        => clk,
       reset      => reset,
@@ -184,7 +128,7 @@ begin
       signal_out => sync_cmd_step_seq
       );
 
-  programmable_delay_stop : programmable_delay
+  programmable_delay_stop : entity lsst_reb.programmable_delay
     port map (
       clk        => clk,
       reset      => reset,

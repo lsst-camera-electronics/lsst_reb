@@ -1,16 +1,7 @@
-------------------------------------------------------------------------
-
-------------------------------------------------------------------------
-
 library IEEE;
 use IEEE.STD_LOGIC_1164.all;
 use IEEE.STD_LOGIC_ARITH.all;
 use IEEE.STD_LOGIC_UNSIGNED.all;
-
---  Uncomment the following lines to use the declarations that are
---  provided for instantiating Xilinx primitive components.
---library UNISIM;
---use UNISIM.VComponents.all;
 
 entity pulse_stretcher is
   generic
