@@ -1,33 +1,27 @@
 ----------------------------------------------------------------------------------
--- Company: 
--- Engineer: 
--- 
--- Create Date:    14:16:58 06/06/2016 
--- Design Name: 
--- Module Name:    ltc2945_single_read_fsm - Behavioral 
--- Project Name: 
--- Target Devices: 
--- Tool versions: 
--- Description: 
+-- Company:
+-- Engineer:
 --
--- Dependencies: 
+-- Create Date:    14:16:58 06/06/2016
+-- Design Name:
+-- Module Name:    ltc2945_single_read_fsm - Behavioral
+-- Project Name:
+-- Target Devices:
+-- Tool versions:
+-- Description:
 --
--- Revision: 
+-- Dependencies:
+--
+-- Revision:
 -- Revision 0.01 - File Created
--- Additional Comments: 
+-- Additional Comments:
 --
 ----------------------------------------------------------------------------------
 library IEEE;
 use IEEE.STD_LOGIC_1164.all;
 
--- Uncomment the following library declaration if using
--- arithmetic functions with Signed or Unsigned values
---use IEEE.NUMERIC_STD.ALL;
-
--- Uncomment the following library declaration if instantiating
--- any Xilinx primitives in this code.
---library UNISIM;
---use UNISIM.VComponents.all;
+library lsst_reb;
+use lsst_reb.ltc2945_add_package.all;
 
 entity ltc2945_single_read_fsm is
 
@@ -110,7 +104,7 @@ begin
     next_latch_en_bus <= (others => '0');
 
     case pres_state is
-      
+
       when wait_start =>
         if start_procedure = '0' then
           next_state <= wait_start;
@@ -163,7 +157,7 @@ begin
         else
           next_state <= wait_start;
         end if;
-        
+
     end case;
   end process;
 
