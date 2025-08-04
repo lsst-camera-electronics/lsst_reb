@@ -20,6 +20,8 @@
 library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 
+library lsst_reb;
+
 entity ad56xx_DAC_top is
 
 port (
@@ -64,7 +66,7 @@ port map (
    ce       => '1',
     data_out => ldac_delay_1);
 
-ldac_delay_ff_2 : ff_ce
+ldac_delay_ff_2 : entity lsst_reb.ff_ce
 port map (
     reset    => reset,
     clk      => clk,
