@@ -65,16 +65,6 @@ architecture Behavioral of onewire_master is
   signal bus_out   : std_logic;
   signal en_buffer : std_logic;
 
-
-  component IOBUF  -- I/O Bidirectional buffer (T=0 : I=>IO; T=1: IO=>O)
-    port (
-      I  : in    std_logic;
-      T  : in    std_logic;
-      IO : inout std_logic;
-      O  : out   std_logic);
-  end component;
-
-
 begin
 
   io_buffer : IOBUF  -- I/O Bidirectional buffer (T=0 : I=>IO; T=1: IO=>O)

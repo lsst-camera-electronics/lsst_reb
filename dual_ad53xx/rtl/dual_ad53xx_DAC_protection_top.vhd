@@ -59,38 +59,6 @@ end dual_ad53xx_DAC_protection_top;
 
 architecture Behavioral of dual_ad53xx_DAC_protection_top is
 
-  component SPI_write is
-    generic (clk_divide  : integer := 4;
-             num_bit_max : integer := 16);
-    port (
-      clk         : in  std_logic;
-      reset       : in  std_logic;
-      start_write : in  std_logic;
-      d_to_slave  : in  std_logic_vector(num_bit_max - 1 downto 0);
-      mosi        : out std_logic;
-      ss          : out std_logic;
-      sclk        : out std_logic
-      );
-  end component;
-
-  component ff_ce is
-    port (
-      reset    : in  std_logic;         -- syncronus reset
-      clk      : in  std_logic;         -- clock
-      data_in  : in  std_logic;         -- data in
-      ce       : in  std_logic;         -- clock enable
-      data_out : out std_logic);        -- data out
-  end component;
-
-  component demux_1_2_clk_def_1 is
-    port (
-      reset    : in  std_logic;                      -- syncronus reset
-      clk      : in  std_logic;                      -- clock
-      data_in  : in  std_logic;                      -- data in
-      selector : in  std_logic;
-      data_out : out std_logic_vector(1 downto 0));  -- data out
-  end component;
-
   signal dac_selector : std_logic;
 
   signal start_write_delay_1 : std_logic;

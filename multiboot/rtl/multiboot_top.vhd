@@ -1,33 +1,29 @@
 ----------------------------------------------------------------------------------
--- Company: 
--- Engineer: 
--- 
--- Create Date:    14:03:28 14/09/2018 
--- Design Name: 
--- Module Name:    multiboot_top - Behavioral 
--- Project Name: 
--- Target Devices: 
--- Tool versions: 
--- Description: 
+-- Company:
+-- Engineer:
 --
--- Dependencies: 
+-- Create Date:    14:03:28 14/09/2018
+-- Design Name:
+-- Module Name:    multiboot_top - Behavioral
+-- Project Name:
+-- Target Devices:
+-- Tool versions:
+-- Description:
 --
--- Revision: 
+-- Dependencies:
+--
+-- Revision:
 -- Revision 0.01 - File Created
--- Additional Comments: 
+-- Additional Comments:
 --
 ----------------------------------------------------------------------------------
 library IEEE;
 use IEEE.STD_LOGIC_1164.all;
 
--- Uncomment the following library declaration if using
--- arithmetic functions with Signed or Unsigned values
---use IEEE.NUMERIC_STD.ALL;
-
--- Uncomment the following library declaration if instantiating
--- any Xilinx primitives in this code.
 library UNISIM;
 use UNISIM.VComponents.all;
+
+library lsst_reb;
 
 entity multiboot_top is
 
@@ -70,90 +66,6 @@ entity multiboot_top is
 end multiboot_top;
 
 architecture Behaviotal of multiboot_top is
-
-  component SpiFlashProgrammer_multiboot
-    port (
-      inClk               : in  std_logic;
-      inReset_EnableB     : in  std_logic;
-      inCheckIdOnly       : in  std_logic;
-      inVerifyOnly        : in  std_logic;
-      inStartProg         : in  std_logic;
-      inDaqDone           : in  std_logic;
-      inImageSel          : in  std_logic_vector(1 downto 0);
-      inData32            : in  std_logic_vector(31 downto 0);
-      inDataWriteEnable   : in  std_logic;
-      outReady_BusyB      : out std_logic;
-      outDone             : out std_logic;
-      outError            : out std_logic;
-      outErrorIdcode      : out std_logic;
-      outErrorErase       : out std_logic;
-      outErrorProgram     : out std_logic;
-      outErrorTimeOut     : out std_logic;
-      outErrorAddSel      : out std_logic;
-      outErrorBitstmSize  : out std_logic;
-      outStarted          : out std_logic;
-      outInitializeOK     : out std_logic;
-      outCheckIdOK        : out std_logic;
-      outEraseOK          : out std_logic;
-      outProgramOK        : out std_logic;
-      outVerifyOK         : out std_logic;
-      outSSDReset_EnableB : out std_logic;
-      outSSDStartTransfer : out std_logic;
-      inSSDTransferDone   : in  std_logic;
-      outSSDData8Send     : out std_logic_vector(7 downto 0);
-      inSSDData8Receive   : in  std_logic_vector(7 downto 0));
-  end component;
-
-  component SpiSerDes
-    port (
-      inClk           : in  std_logic;
-      inReset_EnableB : in  std_logic;
-      inStartTransfer : in  std_logic;
-      outTransferDone : out std_logic;
-      inData8Send     : in  std_logic_vector(7 downto 0);
-      outData8Receive : out std_logic_vector(7 downto 0);
-      outSpiCsB       : out std_logic;
-      outSpiClk       : out std_logic;
-      outSpiMosi      : out std_logic;
-      inSpiMiso       : in  std_logic);
-  end component;
-
-  component bitfile_fifo_in
-    port (
-      rst    : in  std_logic;
-      wr_clk : in  std_logic;
-      rd_clk : in  std_logic;
-      din    : in  std_logic_vector(31 downto 0);
-      wr_en  : in  std_logic;
-      rd_en  : in  std_logic;
-      dout   : out std_logic_vector(31 downto 0);
-      full   : out std_logic;
-      empty  : out std_logic
-      );
-  end component;
-
-  component generic_reg_ce_init
-    generic (
-      width : integer);
-    port (
-      reset    : in  std_logic;
-      clk      : in  std_logic;
-      ce       : in  std_logic;
-      init     : in  std_logic;
-      data_in  : in  std_logic_vector(width downto 0);
-      data_out : out std_logic_vector(width downto 0));
-  end component;
-
-  component multiboot_fsm_read
-    port (
-      SYSCLK         : in  std_logic;
-      RESET          : in  std_logic;
-      TRIGGER        : in  std_logic;
-      IMAGESEL       : in  std_logic_vector(1 downto 0);
-      ICAP_OUT_VALID : out std_logic;
-      ICAP_OUT       : out std_logic_vector(31 downto 0)
-      );
-  end component;
 
   signal bitstream_fifo_empty : std_logic;
   signal DataWriteEnable      : std_logic;
@@ -213,7 +125,7 @@ architecture Behaviotal of multiboot_top is
   signal icap_out        : std_logic_vector(31 downto 0);
   signal Icap_out_reg    : std_logic_vector(31 downto 0);
 
-  
+
 begin  -- Behaviotal
 
   DataWriteEnable <= not bitstream_fifo_empty;
@@ -245,7 +157,7 @@ begin  -- Behaviotal
 
 
 
-  bitstream_fifo : bitfile_fifo_in
+  bitstream_fifo : entity lsst_reb.bitfile_fifo_in
     port map (
       rst    => inReset_EnableB,
       wr_clk => inBitstreamClk,
@@ -258,7 +170,7 @@ begin  -- Behaviotal
       empty  => bitstream_fifo_empty
       );
 
-  slot_ID_reg : generic_reg_ce_init
+  slot_ID_reg : entity lsst_reb.generic_reg_ce_init
     generic map (
       width => 1)
     port map (
@@ -272,7 +184,7 @@ begin  -- Behaviotal
 
   status_or <= status_int or status_reg;
 
-  status_register : generic_reg_ce_init
+  status_register : entity lsst_reb.generic_reg_ce_init
     generic map (
       width => 15)
     port map (
@@ -284,7 +196,7 @@ begin  -- Behaviotal
       data_out => status_reg
       );
 
-  status_sync_1 : generic_reg_ce_init
+  status_sync_1 : entity lsst_reb.generic_reg_ce_init
     generic map (
       width => 15)
     port map (
@@ -297,7 +209,7 @@ begin  -- Behaviotal
       );
 
 
-  SpiFlashProgrammer_multiboot_1 : SpiFlashProgrammer_multiboot
+  SpiFlashProgrammer_multiboot_1 : entity lsst_reb.SpiFlashProgrammer_multiboot
     port map (
       inClk               => inSpiClk,
       inReset_EnableB     => inReset_EnableB,
@@ -332,7 +244,7 @@ begin  -- Behaviotal
 
 
 
-  iSpiSerDes : SpiSerDes port map
+  iSpiSerDes : entity lsst_reb.SpiSerDes port map
     (
       inClk           => inSpiClk,
       inReset_EnableB => SSDReset_EnableB,
@@ -359,7 +271,7 @@ begin  -- Behaviotal
       USRDONETS => '1'
       );
 
-  slot_ID_reboot_reg : generic_reg_ce_init
+  slot_ID_reboot_reg : entity lsst_reb.generic_reg_ce_init
     generic map (
       width => 1)
     port map (
@@ -380,7 +292,7 @@ begin  -- Behaviotal
   StartReboot <= StartReboot_str or StartReboot_str1 or StartReboot_str2 or StartReboot_str3;
 
 
-  multiboot_fsm_1 : multiboot_fsm_read
+  multiboot_fsm_1 : entity lsst_reb.multiboot_fsm_read
     port map (
       SYSCLK         => inSpiClk,
       TRIGGER        => StartReboot,
@@ -389,7 +301,7 @@ begin  -- Behaviotal
       ICAP_OUT_VALID => icap_out_we,
       ICAP_OUT       => icap_out);
 
-  Icap_out_reg1 : generic_reg_ce_init
+  Icap_out_reg1 : entity lsst_reb.generic_reg_ce_init
     generic map (
       width => 31)
     port map (
