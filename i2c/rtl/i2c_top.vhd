@@ -20,6 +20,8 @@
 library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 
+library lsst_reb;
+
 entity i2c_top is
 
 port (

@@ -67,6 +67,20 @@ end multiboot_top;
 
 architecture Behaviotal of multiboot_top is
 
+  component bitfile_fifo_in
+    port (
+      rst    : in  std_logic;
+      wr_clk : in  std_logic;
+      rd_clk : in  std_logic;
+      din    : in  std_logic_vector(31 downto 0);
+      wr_en  : in  std_logic;
+      rd_en  : in  std_logic;
+      dout   : out std_logic_vector(31 downto 0);
+      full   : out std_logic;
+      empty  : out std_logic
+      );
+  end component;
+
   signal bitstream_fifo_empty : std_logic;
   signal DataWriteEnable      : std_logic;
   signal Ready_BusyB          : std_logic;  -- fifo write enable
@@ -157,7 +171,7 @@ begin  -- Behaviotal
 
 
 
-  bitstream_fifo : entity lsst_reb.bitfile_fifo_in
+  bitstream_fifo : bitfile_fifo_in
     port map (
       rst    => inReset_EnableB,
       wr_clk => inBitstreamClk,
