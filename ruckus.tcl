@@ -13,6 +13,8 @@ if { [info exists ::env(OVERRIDE_SUBMODULE_LOCKS)] != 1 || $::env(OVERRIDE_SUBMO
 
 # Load ruckus files
 loadRuckusTcl "$::DIR_PATH/basic_elements"
+loadRuckusTcl "$::DIR_PATH/ad53xx_dac"
+loadRuckusTcl "$::DIR_PATH/ad56xx_dac"
 loadRuckusTcl "$::DIR_PATH/ad7794_temp_sens"
 loadRuckusTcl "$::DIR_PATH/ads8634_and_mux"
 loadRuckusTcl "$::DIR_PATH/ADC_data_handler_v4"
@@ -20,7 +22,6 @@ loadRuckusTcl "$::DIR_PATH/adt7420_multiread"
 loadRuckusTcl "$::DIR_PATH/aspic_3_program"
 loadRuckusTcl "$::DIR_PATH/brs"
 loadRuckusTcl "$::DIR_PATH/clk_2MHz_gen"
-loadRuckusTcl "$::DIR_PATH/dual_ad53xx"
 loadRuckusTcl "$::DIR_PATH/dual_ads1118"
 loadRuckusTcl "$::DIR_PATH/i2c"
 loadRuckusTcl "$::DIR_PATH/led_blink"
