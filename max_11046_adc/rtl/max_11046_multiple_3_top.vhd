@@ -22,8 +22,8 @@ use IEEE.STD_LOGIC_1164.all;
 use IEEE.STD_LOGIC_ARITH.all;
 use IEEE.STD_LOGIC_UNSIGNED.all;
 
-library reb_lsst;
-use reb_lsst.basic_elements_pkg.all;
+library lsst_reb;
+use lsst_reb.basic_elements_pkg.all;
 
 entity max_11046_multiple_3_top is
 
