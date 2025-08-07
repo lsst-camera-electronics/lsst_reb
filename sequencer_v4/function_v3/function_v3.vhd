@@ -20,6 +20,7 @@
 library IEEE;
 use IEEE.STD_LOGIC_1164.all;
 
+library surf;
 library lsst_reb;
 
 entity function_v3 is
@@ -54,30 +55,6 @@ entity function_v3 is
 end function_v3;
 
 architecture Behavioral of function_v3 is
-
-  COMPONENT dual_port_ram_8_16
-    PORT (
-      a : IN STD_LOGIC_VECTOR(7 DOWNTO 0);
-      d : IN STD_LOGIC_VECTOR(15 DOWNTO 0);
-      dpra : IN STD_LOGIC_VECTOR(7 DOWNTO 0);
-      clk : IN STD_LOGIC;
-      we : IN STD_LOGIC;
-      spo : OUT STD_LOGIC_VECTOR(15 DOWNTO 0);
-      dpo : OUT STD_LOGIC_VECTOR(15 DOWNTO 0)
-    );
-  END COMPONENT;
-
-  COMPONENT dual_port_ram_8_32
-    PORT (
-      a : IN STD_LOGIC_VECTOR(7 DOWNTO 0);
-      d : IN STD_LOGIC_VECTOR(31 DOWNTO 0);
-      dpra : IN STD_LOGIC_VECTOR(7 DOWNTO 0);
-      clk : IN STD_LOGIC;
-      we : IN STD_LOGIC;
-      spo : OUT STD_LOGIC_VECTOR(31 DOWNTO 0);
-      dpo : OUT STD_LOGIC_VECTOR(31 DOWNTO 0)
-    );
-  END COMPONENT;
 
   signal time_add_timeslice       : std_logic_vector(3 downto 0);
   signal time_add_timeslice_plus1 : std_logic_vector(3 downto 0);
@@ -115,28 +92,43 @@ begin
       bus_out => time_add_w_mux
       );
 
-time_mem : dual_port_ram_8_16
-  PORT MAP (
-    a => time_add_w_mux,
-    d => time_mem_in,
-    dpra => time_add_read,
-    clk => clk,
-    we => time_mem_w_en,
-    spo => time_bus_2_int,
-    dpo => time_bus_int
-  );
+  time_mem : entity surf.DualPortRam
+    generic map (
+        MEMORY_TYPE_G => "distributed",
+        REG_EN_G      => false,
+        DOA_REG_G     => false,
+        DOB_REG_G     => false,
+        MODE_G        => "no-change",
+        DATA_WIDTH_G  => 16,
+        ADDR_WIDTH_G  => 8)
+    port map (
+        addra => time_add_w_mux,
+        dina  => time_mem_in,
+        addrb => time_add_read,
+        clka  => clk,
+        clkb  => clk,
+        wea   => time_mem_w_en,
+        douta => time_bus_2_int,
+        doutb => time_bus_int);
 
-out_mem : dual_port_ram_8_32
-  PORT MAP (
-    a => out_mem_w_add,
-    d => out_mem_in,
-    dpra => out_add_read,
-    clk => clk,
-    we => out_mem_w_en,
-    spo => out_mem_out_2,
-    dpo => signal_out_func
-  );
-
+  out_mem : entity surf.DualPortRam
+    generic map (
+        MEMORY_TYPE_G => "distributed",
+        REG_EN_G      => false,
+        DOA_REG_G     => false,
+        DOB_REG_G     => false,
+        MODE_G        => "no-change",
+        DATA_WIDTH_G  => 32,
+        ADDR_WIDTH_G  => 8)
+    port map (
+        addra => out_mem_w_add,
+        dina  => out_mem_in,
+        addrb => out_add_read,
+        clka  => clk,
+        clkb  => clk,
+        wea   => out_mem_w_en,
+        douta => out_mem_out_2,
+        doutb => signal_out_func);
 
   time_mem_out_2 <= time_bus_2_int;
   time_add_plus1 <= time_func_add & time_add_timeslice_plus1;

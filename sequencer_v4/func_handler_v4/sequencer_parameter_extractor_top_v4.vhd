@@ -22,6 +22,7 @@ use IEEE.STD_LOGIC_1164.all;
 use IEEE.STD_LOGIC_ARITH.all;
 use IEEE.STD_LOGIC_UNSIGNED.all;
 
+library surf;
 library lsst_reb;
 
 entity sequencer_parameter_extractor_top_v4 is
@@ -64,107 +65,6 @@ end sequencer_parameter_extractor_top_v4;
 
 architecture Behavioral of sequencer_parameter_extractor_top_v4 is
 
-  component generic_single_port_ram is
-    generic(
-      data_width : integer;
-      add_width  : integer);
-    port (
-      clk          : in  std_logic;                                 -- clock
-      ram_wr_en    : in  std_logic;                                 -- data in
-      ram_add      : in  std_logic_vector(add_width-1 downto 0);
-      ram_data_in  : in  std_logic_vector(data_width-1 downto 0);
-      ram_data_out : out std_logic_vector(data_width-1 downto 0));  -- data out
-  end component;
-
-  component generic_dual_port_ram is
-    generic(
-      data_width : integer := 32;
-      add_width  : integer := 8);
-    port (
-      clk            : in  std_logic;   -- clock
-      ram_wr_en      : in  std_logic;   -- data in
-      ram_wr_add     : in  std_logic_vector(add_width-1 downto 0);
-      ram_rd_add     : in  std_logic_vector(add_width-1 downto 0);
-      ram_data_in    : in  std_logic_vector(data_width-1 downto 0);
-      ram_data_out_1 : out std_logic_vector(data_width-1 downto 0);
-      ram_data_out_2 : out std_logic_vector(data_width-1 downto 0)
-      );
-  end component;
-
-  component dual_port_ram_ip
-    port (
-      a    : in  std_logic_vector(9 downto 0);
-      d    : in  std_logic_vector(31 downto 0);
-      dpra : in  std_logic_vector(9 downto 0);
-      clk  : in  std_logic;
-      we   : in  std_logic;
-      spo  : out std_logic_vector(31 downto 0);
-      dpo  : out std_logic_vector(31 downto 0)
-      );
-  end component;
-
-  component dual_port_ram_4_4
-    port (
-      a    : in  std_logic_vector(3 downto 0);
-      d    : in  std_logic_vector(3 downto 0);
-      dpra : in  std_logic_vector(3 downto 0);
-      clk  : in  std_logic;
-      we   : in  std_logic;
-      spo  : out std_logic_vector(3 downto 0);
-      dpo  : out std_logic_vector(3 downto 0)
-      );
-  end component;
-
-  component dual_port_ram_24_4
-    port (
-      a    : in  std_logic_vector(3 downto 0);
-      d    : in  std_logic_vector(23 downto 0);
-      dpra : in  std_logic_vector(3 downto 0);
-      clk  : in  std_logic;
-      we   : in  std_logic;
-      spo  : out std_logic_vector(23 downto 0);
-      dpo  : out std_logic_vector(23 downto 0)
-      );
-  end component;
-
-  component dual_port_ram_10_4
-    port (
-      a    : in  std_logic_vector(3 downto 0);
-      d    : in  std_logic_vector(9 downto 0);
-      dpra : in  std_logic_vector(3 downto 0);
-      clk  : in  std_logic;
-      we   : in  std_logic;
-      spo  : out std_logic_vector(9 downto 0);
-      dpo  : out std_logic_vector(9 downto 0)
-      );
-  end component;
-
-  component dual_port_ram_16_4
-    port (
-      a    : in  std_logic_vector(3 downto 0);
-      d    : in  std_logic_vector(15 downto 0);
-      dpra : in  std_logic_vector(3 downto 0);
-      clk  : in  std_logic;
-      we   : in  std_logic;
-      spo  : out std_logic_vector(15 downto 0);
-      dpo  : out std_logic_vector(15 downto 0)
-      );
-  end component;
-
-  component seq_param_fifo_v3
-    port (
-      clk   : in  std_logic;
-      srst  : in  std_logic;
-      din   : in  std_logic_vector(31 downto 0);
-      wr_en : in  std_logic;
-      rd_en : in  std_logic;
-      dout  : out std_logic_vector(31 downto 0);
-      full  : out std_logic;
-      empty : out std_logic
-      );
-  end component;
-
-
   signal fifo_param_full          : std_logic;
   signal prog_mem_data_out        : std_logic_vector(31 downto 0);
   signal data_from_stack          : std_logic_vector(31 downto 0);
@@ -187,6 +87,13 @@ architecture Behavioral of sequencer_parameter_extractor_top_v4 is
   signal prog_mem_all_ind         : std_logic_vector(31 downto 0);
   signal fifo_in_bus              : std_logic_vector(31 downto 0);
 
+  --attribute MARK_DEBUG : string;
+  --attribute MARK_DEBUG of seq_mem_w_add       : signal is "TRUE";
+  --attribute MARK_DEBUG of seq_mem_data_in     : signal is "TRUE";
+  --attribute MARK_DEBUG of program_mem_rd_add  : signal is "TRUE";
+  --attribute MARK_DEBUG of program_mem_we      : signal is "TRUE";
+  --attribute MARK_DEBUG of prog_mem_redbk      : signal is "TRUE";
+  --attribute MARK_DEBUG of prog_mem_data_out   : signal is "TRUE";
 
 begin
 
@@ -224,38 +131,62 @@ begin
       ram_data_in  => stack_data_in,
       ram_data_out => data_from_stack);
 
-  program_memory : dual_port_ram_ip
+  program_memory : entity surf.DualPortRam
+    generic map (
+        MEMORY_TYPE_G => "distributed",
+        REG_EN_G      => false,
+        DOA_REG_G     => false,
+        DOB_REG_G     => false,
+        MODE_G        => "no-change",
+        DATA_WIDTH_G  => 32,
+        ADDR_WIDTH_G  => 10)
     port map (
-      a    => seq_mem_w_add,
-      d    => seq_mem_data_in,
-      dpra => program_mem_rd_add,
-      clk  => clk,
-      we   => program_mem_we,
-      spo  => prog_mem_redbk,
-      dpo  => prog_mem_data_out
-      );
+        addra => seq_mem_w_add,
+        dina  => seq_mem_data_in,
+        addrb => program_mem_rd_add,
+        clka  => clk,
+        clkb  => clk,
+        wea   => program_mem_we,
+        douta => prog_mem_redbk,
+        doutb => prog_mem_data_out);
 
-  indirect_func_mem : dual_port_ram_4_4
+  indirect_func_mem : entity surf.DualPortRam
+    generic map (
+        MEMORY_TYPE_G => "distributed",
+        REG_EN_G      => false,
+        DOA_REG_G     => false,
+        DOB_REG_G     => false,
+        MODE_G        => "no-change",
+        DATA_WIDTH_G  => 4,
+        ADDR_WIDTH_G  => 4)
     port map (
-      a    => seq_mem_w_add(3 downto 0),
-      d    => seq_mem_data_in(3 downto 0),
-      dpra => prog_mem_data_out(27 downto 24),
-      clk  => clk,
-      we   => ind_func_mem_we,
-      spo  => ind_func_mem_redbk,
-      dpo  => ind_func_mem_data_out
-      );
+        addra => seq_mem_w_add(3 downto 0),
+        dina  => seq_mem_data_in(3 downto 0),
+        addrb => prog_mem_data_out(27 downto 24),
+        clka  => clk,
+        clkb  => clk,
+        wea   => ind_func_mem_we,
+        douta => ind_func_mem_redbk,
+        doutb => ind_func_mem_data_out);
 
-  indirect_rep_mem : dual_port_ram_24_4
+  indirect_rep_mem : entity surf.DualPortRam
+    generic map (
+        MEMORY_TYPE_G => "distributed",
+        REG_EN_G      => false,
+        DOA_REG_G     => false,
+        DOB_REG_G     => false,
+        MODE_G        => "no-change",
+        DATA_WIDTH_G  => 24,
+        ADDR_WIDTH_G  => 4)
     port map (
-      a    => seq_mem_w_add(3 downto 0),
-      d    => seq_mem_data_in(23 downto 0),
-      dpra => prog_mem_data_out(3 downto 0),
-      clk  => clk,
-      we   => ind_rep_mem_we,
-      spo  => ind_rep_mem_redbk,
-      dpo  => ind_rep_mem_data_out
-      );
+        addra => seq_mem_w_add(3 downto 0),
+        dina  => seq_mem_data_in(23 downto 0),
+        addrb => prog_mem_data_out(3 downto 0),
+        clka  => clk,
+        clkb  => clk,
+        wea   => ind_rep_mem_we,
+        douta => ind_rep_mem_redbk,
+        doutb => ind_rep_mem_data_out);
 
   generic_mux_bus_4_1_clk_0 : entity lsst_reb.generic_mux_bus_4_1_clk
     generic map (
@@ -272,39 +203,57 @@ begin
 
   fifo_param_we_reg <= fifo_param_we;
 
-  indirect_sub_add_mem : dual_port_ram_10_4
+  indirect_sub_add_mem : entity surf.DualPortRam
+    generic map (
+        MEMORY_TYPE_G => "distributed",
+        REG_EN_G      => false,
+        DOA_REG_G     => false,
+        DOB_REG_G     => false,
+        MODE_G        => "no-change",
+        DATA_WIDTH_G  => 10,
+        ADDR_WIDTH_G  => 4)
     port map (
-      a    => seq_mem_w_add(3 downto 0),
-      d    => seq_mem_data_in(9 downto 0),
-      dpra => prog_mem_data_out(19 downto 16),
-      clk  => clk,
-      we   => ind_sub_add_mem_we,
-      spo  => ind_sub_add_mem_redbk,
-      dpo  => ind_sub_add_mem_data_out
-      );
+        addra => seq_mem_w_add(3 downto 0),
+        dina  => seq_mem_data_in(9 downto 0),
+        addrb => prog_mem_data_out(19 downto 16),
+        clka  => clk,
+        clkb  => clk,
+        wea   => ind_sub_add_mem_we,
+        douta => ind_sub_add_mem_redbk,
+        doutb => ind_sub_add_mem_data_out);
 
-  indirect_sub_rep_mem : dual_port_ram_16_4
+  indirect_sub_rep_mem : entity surf.DualPortRam
+    generic map (
+        MEMORY_TYPE_G => "distributed",
+        REG_EN_G      => false,
+        DOA_REG_G     => false,
+        DOB_REG_G     => false,
+        MODE_G        => "no-change",
+        DATA_WIDTH_G  => 16,
+        ADDR_WIDTH_G  => 4)
     port map (
-      a    => seq_mem_w_add(3 downto 0),
-      d    => seq_mem_data_in(15 downto 0),
-      dpra => prog_mem_data_out(3 downto 0),
-      clk  => clk,
-      we   => ind_sub_rep_mem_we,
-      spo  => ind_sub_rep_mem_redbk,
-      dpo  => ind_sub_rep_mem_data_out
-      );
+        addra => seq_mem_w_add(3 downto 0),
+        dina  => seq_mem_data_in(15 downto 0),
+        addrb => prog_mem_data_out(3 downto 0),
+        clka  => clk,
+        clkb  => clk,
+        wea   => ind_sub_rep_mem_we,
+        douta => ind_sub_rep_mem_redbk,
+        doutb => ind_sub_rep_mem_data_out);
 
-  seq_param_fifo_v3_0 : seq_param_fifo_v3
+  seq_param_fifo_v3_0 : entity surf.FifoSync
+    generic map (
+      DATA_WIDTH_G => 32,
+      ADDR_WIDTH_G => 10)
     port map (
-      clk   => clk,
-      srst  => reset,
-      din   => fifo_in_bus,
+      clk => clk,
+      rst => reset,
+      din => fifo_in_bus,
       wr_en => fifo_param_we_reg,
       rd_en => fifo_param_re,
-      dout  => fifo_param_out,
-      full  => fifo_param_full,
-      empty => fifo_param_empty
-      );
+      dout => fifo_param_out,
+      full => fifo_param_full,
+      empty => fifo_param_empty);
 
   program_mem_init_add_int <= program_mem_init_add_in;
   program_mem_init_add_rbk <= program_mem_init_add_int;
