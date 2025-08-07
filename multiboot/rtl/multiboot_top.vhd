@@ -23,6 +23,7 @@ use IEEE.STD_LOGIC_1164.all;
 library UNISIM;
 use UNISIM.VComponents.all;
 
+library surf;
 library lsst_reb;
 
 entity multiboot_top is
@@ -67,20 +68,6 @@ end multiboot_top;
 
 architecture Behaviotal of multiboot_top is
 
-  component bitfile_fifo_in
-    port (
-      rst    : in  std_logic;
-      wr_clk : in  std_logic;
-      rd_clk : in  std_logic;
-      din    : in  std_logic_vector(31 downto 0);
-      wr_en  : in  std_logic;
-      rd_en  : in  std_logic;
-      dout   : out std_logic_vector(31 downto 0);
-      full   : out std_logic;
-      empty  : out std_logic
-      );
-  end component;
-
   signal bitstream_fifo_empty : std_logic;
   signal DataWriteEnable      : std_logic;
   signal Ready_BusyB          : std_logic;  -- fifo write enable
@@ -102,7 +89,6 @@ architecture Behaviotal of multiboot_top is
 
   -- Status signals
   signal Done            : std_logic;
---  signal error           : std_logic;
   signal ErrorIdcode     : std_logic;
   signal ErrorErase      : std_logic;
   signal ErrorProgram    : std_logic;
@@ -160,18 +146,16 @@ begin  -- Behaviotal
 
   StartProg <= StartProg_str or StartProg_str1 or StartProg_str2 or StartProg_str3;
 
-  --flop1_mbd : FD port map (D => inDaqDone, C => inBitstreamClk, Q => DaqDone_str);
-  --flop2_mbd : FD port map (D => DaqDone_str, C => inBitstreamClk, Q => DaqDone_str1);
-  --flop3_mbd : FD port map (D => DaqDone_str1, C => inBitstreamClk, Q => DaqDone_str2);
-  --flop4_mbd : FD port map (D => DaqDone_str2, C => inBitstreamClk, Q => DaqDone_str3);
-
-  --DaqDone <= DaqDone_str or DaqDone_str1 or DaqDone_str2 or DaqDone_str3;
-
   DaqDone_latch : FDCE port map (D => '1', C => inBitstreamClk, Q => DaqDone, CE => inDaqDone, CLR => Done);
 
-
-
-  bitstream_fifo : bitfile_fifo_in
+  bitstream_fifo : entity surf.FifoAsync
+    generic map (
+      RST_ASYNC_G   => true,
+      MEMORY_TYPE_G => "distributed",
+      FWFT_EN_G     => true,
+      SYNC_STAGES_G => 3,
+      DATA_WIDTH_G  => 32,
+      ADDR_WIDTH_G  => 9)
     port map (
       rst    => inReset_EnableB,
       wr_clk => inBitstreamClk,
@@ -181,8 +165,7 @@ begin  -- Behaviotal
       rd_en  => Ready_BusyB,
       dout   => Data32,
       full   => outBitstreamFifoFull,
-      empty  => bitstream_fifo_empty
-      );
+      empty  => bitstream_fifo_empty);
 
   slot_ID_reg : entity lsst_reb.generic_reg_ce_init
     generic map (
