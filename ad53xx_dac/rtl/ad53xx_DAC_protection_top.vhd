@@ -58,7 +58,7 @@ architecture Behavioral of ad53xx_DAC_protection_top is
 
   signal command_error_i    : std_logic_vector(2 downto 0);
   signal values_under_th_i  : std_logic_vector(2 downto 0);
-  signal first_reset_done_i : std_logic := '0';
+  signal first_reset_done_i : unsigned(0 downto 0);
 
   constant GD_add : std_logic_vector(3 downto 0) := x"0";
   constant OD_add : std_logic_vector(3 downto 0) := x"5";
@@ -98,9 +98,9 @@ begin
         start_write_delay_1 <= '0';
         d_to_slave_delay_1  <= (others => '0');
         command_error_i     <= (others => '0');
-        if first_reset_done_i = '0' then
+        if first_reset_done_i = "0" then
             -- First reset (power-up) initialization
-            first_reset_done_i <= '1';   -- Mark that first reset has occurred
+            first_reset_done_i <= "1";   -- Mark that first reset has occurred
             values_under_th_i  <= (others => '1');
         end if;
       else
