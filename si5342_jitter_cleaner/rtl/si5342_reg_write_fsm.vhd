@@ -1,43 +1,22 @@
-----------------------------------------------------------------------------------
--- Company:
--- Engineer:
---
--- Create Date:    16:57:56 11/18/2016
--- Design Name:
--- Module Name:    si5342_reg_write_fsm - Behavioral
--- Project Name:
--- Target Devices:
--- Tool versions:
--- Description:
---
--- Dependencies:
---
--- Revision:
--- Revision 0.01 - File Created
--- Additional Comments:
---
-----------------------------------------------------------------------------------
 library IEEE;
 use IEEE.STD_LOGIC_1164.all;
 use IEEE.STD_LOGIC_ARITH.all;
 use IEEE.STD_LOGIC_UNSIGNED.all;
 
 entity si5342_reg_write_fsm is
-
   port (
-    clk         : in  std_logic;
-    reset       : in  std_logic;
-    start_write : in  std_logic;
-    spi_busy    : in  std_logic;
-    page        : in  std_logic_vector(7 downto 0);
-    address     : in  std_logic_vector(7 downto 0);
-    data_in     : in  std_logic_vector(7 downto 0);
-    start_spi   : out std_logic;
-    link_busy   : out std_logic;
-    data_to_spi : out std_logic_vector(15 downto 0)
-    );
-
-end si5342_reg_write_fsm;
+    clk         : in    std_logic;
+    reset       : in    std_logic;
+    start_write : in    std_logic;
+    spi_busy    : in    std_logic;
+    page        : in    std_logic_vector(7 downto 0);
+    address     : in    std_logic_vector(7 downto 0);
+    data_in     : in    std_logic_vector(7 downto 0);
+    start_spi   : out   std_logic;
+    link_busy   : out   std_logic;
+    data_to_spi : out   std_logic_vector(15 downto 0)
+  );
+end entity si5342_reg_write_fsm;
 
 architecture Behavioral of si5342_reg_write_fsm is
 
@@ -55,10 +34,11 @@ architecture Behavioral of si5342_reg_write_fsm is
 
 begin
 
-  process (clk)
+  process (clk) is
   begin
-    if clk'event and clk = '1' then
-      if reset = '1' then
+
+    if rising_edge(clk) then
+      if (reset = '1') then
         pres_state  <= wait_start;
         start_spi   <= '0';
         link_busy   <= '0';
@@ -68,13 +48,12 @@ begin
         start_spi   <= next_start_spi;
         link_busy   <= next_link_busy;
         data_to_spi <= next_data_to_spi;
-
       end if;
     end if;
+
   end process;
 
-
-  process (pres_state, start_write, page, address, data_in, spi_busy)
+  process (pres_state, start_write, page, address, data_in, spi_busy) is
   begin
 
     -------------------- outputs default values  --------------------
@@ -86,7 +65,8 @@ begin
     case pres_state is
 
       when wait_start =>
-        if start_write = '1' then
+
+        if (start_write = '1') then
           next_state       <= set_page_s;
           next_start_spi   <= '1';
           next_data_to_spi <= set_add & page_add;
@@ -96,7 +76,8 @@ begin
         end if;
 
       when set_page_s =>
-        if spi_busy = '0' then
+
+        if (spi_busy = '0') then
           next_state       <= write_page_s;
           next_start_spi   <= '1';
           next_data_to_spi <= write_data & page;
@@ -106,7 +87,8 @@ begin
         end if;
 
       when write_page_s =>
-        if spi_busy = '0' then
+
+        if (spi_busy = '0') then
           next_state       <= set_add_s;
           next_start_spi   <= '1';
           next_data_to_spi <= set_add & address;
@@ -116,7 +98,8 @@ begin
         end if;
 
       when set_add_s =>
-        if spi_busy = '0' then
+
+        if (spi_busy = '0') then
           next_state       <= write_data_s;
           next_start_spi   <= '1';
           next_data_to_spi <= write_data & data_in;
@@ -126,16 +109,18 @@ begin
         end if;
 
       when write_data_s =>
-        if spi_busy = '0' then
-          next_state <= wait_start;
-       next_link_busy <= '0';
+
+        if (spi_busy = '0') then
+          next_state     <= wait_start;
+          next_link_busy <= '0';
         else
           next_state       <= write_data_s;
           next_data_to_spi <= write_data & data_in;
         end if;
 
     end case;
+
   end process;
 
-end Behavioral;
+end architecture Behavioral;
 

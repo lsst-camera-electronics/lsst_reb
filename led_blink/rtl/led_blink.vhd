@@ -6,65 +6,67 @@ library UNISIM;
 use UNISIM.VComponents.all;
 
 entity led_blink is
-
-port (
-  clk_in  : in  std_logic;
-  led_out  : out std_logic);
-
-end led_blink;
+  port (
+    clk_in  : in    std_logic;
+    led_out : out   std_logic
+  );
+end entity led_blink;
 
 architecture Behavioral of led_blink is
 
-signal count_0 : std_logic_vector(19 downto 0) := x"00000"; -- the length of this counter is the lenght of a cycle
-signal count_1 : std_logic_vector(19 downto 0) := x"00000";
-signal cnt    : std_logic_vector(19 downto 0) := x"00000";
-signal updown  : std_logic := '0';
+  signal count_0 : std_logic_vector(19 downto 0) := x"00000"; -- the length of this counter is the lenght of a cycle
+  signal count_1 : std_logic_vector(19 downto 0) := x"00000";
+  signal cnt     : std_logic_vector(19 downto 0) := x"00000";
+  signal updown  : std_logic                     := '0';
 
-signal led_output : std_logic;
+  signal led_output : std_logic;
 
 begin
 
-PWM_MODULE_0: process(clk_in) begin
+  PWM_MODULE_0 : process (clk_in) is
+  begin
 
-  if rising_edge(clk_in)then
-    count_0 <= count_0 + 1;
-    if count_0 < count_1 then
-      led_output <= '1';
-    else
-      led_output <= '0';
-    end if;
-  end if;
-end process PWM_MODULE_0;
-
-COUNTER_0: process(clk_in)
-begin
-
-  if rising_edge(clk_in) then
-    if cnt = x"0fffe" then
-      if updown = '0' then
-        count_1 <= count_1 + 30; -- this number defines how fast the led goes on
-        cnt <= cnt + 1;
+    if rising_edge(clk_in)then
+      count_0 <= count_0 + 1;
+      if (count_0 < count_1) then
+        led_output <= '1';
       else
-        count_1 <= count_1 - 30; -- this number defines how fast the led goes off
-        cnt <= cnt + 1;
-      end if;
-    elsif cnt = x"0ffff" then
-      cnt <= x"00000";
-    else
-      cnt <= cnt + 1;
-  end if;
-    if updown = '0' then
-      if count_1 > x"3FFFF" then -- this number defines how bright the led is
-        updown <= '1';
-      end if;
-    else
-      if count_1 < x"0005" then -- this number defines how dark the led is
-        updown <= '0';
+        led_output <= '0';
       end if;
     end if;
-end if;
-end process COUNTER_0;
 
-led_out <= led_output;
+  end process PWM_MODULE_0;
 
-end Behavioral;
+  COUNTER_0 : process (clk_in) is
+  begin
+
+    if rising_edge(clk_in) then
+      if (cnt = x"0fffe") then
+        if (updown = '0') then
+          count_1 <= count_1 + 30;   -- this number defines how fast the led goes on
+          cnt     <= cnt + 1;
+        else
+          count_1 <= count_1 - 30;   -- this number defines how fast the led goes off
+          cnt     <= cnt + 1;
+        end if;
+      elsif (cnt = x"0ffff") then
+        cnt <= x"00000";
+      else
+        cnt <= cnt + 1;
+      end if;
+      if (updown = '0') then
+        if (count_1 > x"3FFFF") then -- this number defines how bright the led is
+          updown <= '1';
+        end if;
+      else
+        if (count_1 < x"0005") then  -- this number defines how dark the led is
+          updown <= '0';
+        end if;
+      end if;
+    end if;
+
+  end process COUNTER_0;
+
+  led_out <= led_output;
+
+end architecture Behavioral;

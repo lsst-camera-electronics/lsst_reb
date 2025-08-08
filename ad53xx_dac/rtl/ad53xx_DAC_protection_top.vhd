@@ -1,53 +1,33 @@
-----------------------------------------------------------------------------------
--- Company:
--- Engineer:
---
--- Create Date:    13:03:27 10/14/2017
--- Design Name:
--- Module Name:    ad53xx_DAC_protection_top - Behavioral
--- Project Name:
--- Target Devices:
--- Tool versions:
--- Description:
---
--- Dependencies:
---
--- Revision:
--- Revision 0.01 - File Created
--- Additional Comments:
---
-----------------------------------------------------------------------------------
 library IEEE;
 use IEEE.STD_LOGIC_1164.all;
-
 use IEEE.NUMERIC_STD.ALL;
 
 library lsst_reb;
 
 entity ad53xx_DAC_protection_top is
   generic (
-    GD_th : integer range 0 to 2**12-1 := 1138;  -- equivalent to x"472"
-    OD_th : integer range 0 to 2**12-1 := 2275;  -- equivalent to x"8E3"
-    RD_th : integer range 0 to 2**12-1 := 1632); -- equivalent to x"660"
+    GD_th : integer range 0 to 2**12-1 := 1138; -- equivalent to x"472"
+    OD_th : integer range 0 to 2**12-1 := 2275; -- equivalent to x"8E3"
+    RD_th : integer range 0 to 2**12-1 := 1632  -- equivalent to x"660"
+  );
   port (
-    clk             : in  std_logic;
-    reset           : in  std_logic;
-    start_write     : in  std_logic;
-    start_ldac      : in  std_logic;
-    bbs_switch_on   : in  std_logic;
-    d_to_slave      : in  std_logic_vector(15 downto 0);
-    command_error   : out std_logic_vector(2 downto 0);
-    values_under_th : out std_logic_vector(2 downto 0);
-    mosi            : out std_logic;
-    ss              : out std_logic;
-    sclk            : out std_logic;
-    ldac            : out std_logic;
-    gd_thresh       : out std_logic_vector(11 downto 0);
-    od_thresh       : out std_logic_vector(11 downto 0);
-    rd_thresh       : out std_logic_vector(11 downto 0)
-    );
-
-end ad53xx_DAC_protection_top;
+    clk             : in    std_logic;
+    reset           : in    std_logic;
+    start_write     : in    std_logic;
+    start_ldac      : in    std_logic;
+    bbs_switch_on   : in    std_logic;
+    d_to_slave      : in    std_logic_vector(15 downto 0);
+    command_error   : out   std_logic_vector(2 downto 0);
+    values_under_th : out   std_logic_vector(2 downto 0);
+    mosi            : out   std_logic;
+    ss              : out   std_logic;
+    sclk            : out   std_logic;
+    ldac            : out   std_logic;
+    gd_thresh       : out   std_logic_vector(11 downto 0);
+    od_thresh       : out   std_logic_vector(11 downto 0);
+    rd_thresh       : out   std_logic_vector(11 downto 0)
+  );
+end entity ad53xx_DAC_protection_top;
 
 architecture Behavioral of ad53xx_DAC_protection_top is
 
@@ -76,8 +56,10 @@ begin
   RD_th_int <= std_logic_vector(to_unsigned(RD_th, 12));
 
   SPI_write_0 : entity lsst_reb.SPI_write
-    generic map (clk_divide  => 2,
-                 num_bit_max => 16)
+    generic map (
+      clk_divide  => 2,
+      num_bit_max => 16
+    )
     port map (
       clk         => clk,
       reset       => reset,
@@ -86,27 +68,28 @@ begin
       mosi        => mosi,
       ss          => ss,
       sclk        => sclk
-      );
+    );
 
--------------------------------------------------------------------------------
--- protection logic
--------------------------------------------------------------------------------
-  process (clk)
+  ------------------------------------------------------------------------------
+  -- protection logic
+  ------------------------------------------------------------------------------
+  process (clk) is
   begin
-    if clk'event and clk = '1' then
-      if reset = '1' then
+
+    if rising_edge(clk) then
+      if (reset = '1') then
         start_write_delay_1 <= '0';
         d_to_slave_delay_1  <= (others => '0');
         command_error_i     <= (others => '0');
-        if first_reset_done_i = "0" then
-            -- First reset (power-up) initialization
-            first_reset_done_i <= "1";   -- Mark that first reset has occurred
-            values_under_th_i  <= (others => '1');
+        if (first_reset_done_i = "0") then
+          -- First reset (power-up) initialization
+          first_reset_done_i <= "1";   -- Mark that first reset has occurred
+          values_under_th_i  <= (others => '1');
         end if;
       else
-        if start_write = '1' and d_to_slave(15 downto 12) = GD_add then
-          if d_to_slave(11 downto 0) < GD_th_int then
-            if bbs_switch_on = '1' then
+        if (start_write = '1' and d_to_slave(15 downto 12) = GD_add) then
+          if (d_to_slave(11 downto 0) < GD_th_int) then
+            if (bbs_switch_on = '1') then
               start_write_delay_1 <= '0';
               d_to_slave_delay_1  <= (others => '0');
               command_error_i(0)  <= '1';
@@ -133,10 +116,9 @@ begin
             values_under_th_i(1) <= values_under_th_i(1);
             values_under_th_i(2) <= values_under_th_i(2);
           end if;
-
-        elsif start_write = '1' and d_to_slave(15 downto 12) = OD_add then
-          if d_to_slave(11 downto 0) < OD_th_int then
-            if bbs_switch_on = '1' then
+        elsif (start_write = '1' and d_to_slave(15 downto 12) = OD_add) then
+          if (d_to_slave(11 downto 0) < OD_th_int) then
+            if (bbs_switch_on = '1') then
               start_write_delay_1 <= '0';
               d_to_slave_delay_1  <= (others => '0');
               command_error_i(0)  <= command_error_i(0);
@@ -163,9 +145,9 @@ begin
             values_under_th_i(1) <= '0';
             values_under_th_i(2) <= values_under_th_i(2);
           end if;
-        elsif start_write = '1' and d_to_slave(15 downto 12) = RD_add then
-          if d_to_slave(11 downto 0) < RD_th_int then
-            if bbs_switch_on = '1' then
+        elsif (start_write = '1' and d_to_slave(15 downto 12) = RD_add) then
+          if (d_to_slave(11 downto 0) < RD_th_int) then
+            if (bbs_switch_on = '1') then
               start_write_delay_1 <= '0';
               d_to_slave_delay_1  <= (others => '0');
               command_error_i(0)  <= command_error_i(0);
@@ -200,12 +182,11 @@ begin
         end if;
       end if;
     end if;
-  end process;
 
+  end process;
 
   command_error   <= command_error_i;
   values_under_th <= values_under_th_i;
-
 
   ldac_delay_ff_1 : entity lsst_reb.ff_ce
     port map (
@@ -213,7 +194,8 @@ begin
       clk      => clk,
       data_in  => start_ldac,
       ce       => '1',
-      data_out => ldac_delay_1);
+      data_out => ldac_delay_1
+    );
 
   ldac_delay_ff_2 : entity lsst_reb.ff_ce
     port map (
@@ -221,7 +203,8 @@ begin
       clk      => clk,
       data_in  => ldac_delay_1,
       ce       => '1',
-      data_out => ldac_delay_2);
+      data_out => ldac_delay_2
+    );
 
   ldac <= not(ldac_delay_1 or ldac_delay_2);
 
@@ -230,5 +213,5 @@ begin
   od_thresh <= OD_th_int;
   rd_thresh <= RD_th_int;
 
-end Behavioral;
+end architecture Behavioral;
 

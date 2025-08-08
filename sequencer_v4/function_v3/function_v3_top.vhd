@@ -1,56 +1,35 @@
-----------------------------------------------------------------------------------
--- Company:
--- Engineer:
---
--- Create Date:    17:43:16 04/10/2013
--- Design Name:
--- Module Name:    function_v3_top - Behavioral
--- Project Name:
--- Target Devices:
--- Tool versions:
--- Description:
---
--- Dependencies:
---
--- Revision:
--- Revision 0.01 - File Created
--- Additional Comments:
---
-----------------------------------------------------------------------------------
 library IEEE;
 use IEEE.STD_LOGIC_1164.all;
 
 library lsst_reb;
 
 entity function_v3_top is
-
   port (
-    reset : in std_logic;               -- syncronus reset
-    clk   : in std_logic;               -- clock
+    reset : in    std_logic; -- syncronus reset
+    clk   : in    std_logic; -- clock
 
-    time_mem_w_en   : in  std_logic;
-    time_mem_in     : in  std_logic_vector(15 downto 0);
-    time_mem_w_add  : in  std_logic_vector(7 downto 0);
-    time_mem_readbk : out std_logic_vector(15 downto 0);
+    time_mem_w_en   : in    std_logic;
+    time_mem_in     : in    std_logic_vector(15 downto 0);
+    time_mem_w_add  : in    std_logic_vector(7 downto 0);
+    time_mem_readbk : out   std_logic_vector(15 downto 0);
 
-    out_mem_w_en   : in  std_logic;
-    out_mem_in     : in  std_logic_vector(31 downto 0);
-    out_mem_w_add  : in  std_logic_vector(7 downto 0);
-    out_mem_readbk : out std_logic_vector(31 downto 0);
+    out_mem_w_en   : in    std_logic;
+    out_mem_in     : in    std_logic_vector(31 downto 0);
+    out_mem_w_add  : in    std_logic_vector(7 downto 0);
+    out_mem_readbk : out   std_logic_vector(31 downto 0);
 
-    fifo_empty     : in  std_logic;
-    fifo_read_en   : out std_logic;
-    fifo_param_out : in  std_logic_vector(31 downto 0);
+    fifo_empty     : in    std_logic;
+    fifo_read_en   : out   std_logic;
+    fifo_param_out : in    std_logic_vector(31 downto 0);
 
-    stop_sequence : in std_logic;
-    step_sequence : in std_logic;
+    stop_sequence : in    std_logic;
+    step_sequence : in    std_logic;
 
-    sequencer_busy : out std_logic;
-    sequencer_out  : out std_logic_vector(31 downto 0);
-    end_sequence   : out std_logic
-    );
-
-end function_v3_top;
+    sequencer_busy : out   std_logic;
+    sequencer_out  : out   std_logic_vector(31 downto 0);
+    end_sequence   : out   std_logic
+  );
+end entity function_v3_top;
 
 architecture Behavioral of function_v3_top is
 
@@ -88,27 +67,31 @@ begin
       sequencer_busy    => sequencer_busy_int,
       veto_out          => veto_out,
       end_sequence      => end_sequence
-      );
+    );
 
   rep_counter : entity lsst_reb.generic_counter_comparator_ce_init
-    generic map (length_cnt => 22)
+    generic map (
+      length_cnt => 22
+    )
     port map (
-      reset     => reset,               -- syncronus reset
-      clk       => clk,                 -- clock
-      max_value => fifo_param_out(22 downto 0),  -- maximum value the counter has to count
-      enable    => en_rep_cnt,          -- enable
+      reset     => reset,
+      clk       => clk,
+      max_value => fifo_param_out(22 downto 0),
+      enable    => en_rep_cnt,
       init      => init_rep_cnt,
-      cnt_end   => end_rep_cnt);  -- signal = 1 when the counter reach the maximum
+      cnt_end   => end_rep_cnt
+    );  -- signal = 1 when the counter reach the maximum
 
   function_v3_0 : entity lsst_reb.function_v3
-    generic map (time_bus_width => 16,
-                 out_bus_width  => 32,
-                 time_slice_num => 16,
-                 function_num   => 15
-                 )
+    generic map (
+      time_bus_width => 16,
+      out_bus_width  => 32,
+      time_slice_num => 16,
+      function_num   => 15
+    )
     port map (
-      reset          => reset,          -- syncronus reset
-      clk            => clk,            -- clock
+      reset          => reset,
+      clk            => clk,
       start_func     => start_func,
       sequencer_busy => sequencer_busy_int,
 
@@ -126,17 +109,20 @@ begin
 
       end_func        => end_func,
       signal_out_func => sequencer_out_mem
-      );
+    );
 
   output_reg : entity lsst_reb.generic_reg_ce_init
-    generic map (width => 31)
+    generic map (
+      width => 31
+    )
     port map (
       reset    => reset,
       clk      => clk,
       ce       => out_ce,
-      init     => '0',  -- signal to reset the reg (active high)
+      init     => '0',
       data_in  => sequencer_out_mem,
-      data_out => sequencer_out);
+      data_out => sequencer_out
+    );
 
   out_ce_delay_1 : entity lsst_reb.ff_ce
     port map (
@@ -144,12 +130,13 @@ begin
       clk      => clk,
       data_in  => out_ce_1,
       ce       => '1',
-      data_out => out_ce_2);
+      data_out => out_ce_2
+    );
 
   out_ce   <= not (out_ce_1 or out_ce_2);
   out_ce_1 <= end_func or veto_out;
 
   sequencer_busy <= sequencer_busy_int;
 
-end Behavioral;
+end architecture Behavioral;
 

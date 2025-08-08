@@ -1,49 +1,28 @@
-----------------------------------------------------------------------------------
--- Company:
--- Engineer:
---
--- Create Date:    14:13:57 03/25/2013
--- Design Name:
--- Module Name:    i2c_top_slow - Behavioral
--- Project Name:
--- Target Devices:
--- Tool versions:
--- Description:
---
--- Dependencies:
---
--- Revision:
--- Revision 0.01 - File Created
--- Additional Comments:
---
-----------------------------------------------------------------------------------
 library IEEE;
 use IEEE.STD_LOGIC_1164.all;
 
 library lsst_reb;
 
 entity i2c_top_slow is
-
   port (
-    clk           : in  std_logic;
-    reset         : in  std_logic;
-    start_i2c     : in  std_logic;
-    read_nwrite   : in  std_logic;
-    double_read   : in  std_logic;
-    latch_word_1  : out std_logic;
-    latch_word_2  : out std_logic;
-    end_procedure : out std_logic;
+    clk           : in    std_logic;
+    reset         : in    std_logic;
+    start_i2c     : in    std_logic;
+    read_nwrite   : in    std_logic;
+    double_read   : in    std_logic;
+    latch_word_1  : out   std_logic;
+    latch_word_2  : out   std_logic;
+    end_procedure : out   std_logic;
 
-    device_addr : in    std_logic_vector(6 downto 0);  --address of target slave
-    reg_add     : in    std_logic_vector (7 downto 0);
-    data_wr     : in    std_logic_vector(7 downto 0);  --data to write to slave
-    data_rd     : out   std_logic_vector(7 downto 0);  --data read from slave
-    ack_error   : out   std_logic;  --flag if improper acknowledge from slave
-    sda         : inout std_logic;      --serial data output of i2c bus
-    scl         : inout std_logic       --serial clock output of i2c bus
-    );
-
-end i2c_top_slow;
+    device_addr : in    std_logic_vector(6 downto 0); -- address of target slave
+    reg_add     : in    std_logic_vector(7 downto 0);
+    data_wr     : in    std_logic_vector(7 downto 0); -- data to write to slave
+    data_rd     : out   std_logic_vector(7 downto 0); -- data read from slave
+    ack_error   : buffer std_logic;                    -- flag if improper acknowledge from slave
+    sda         : inout std_logic;                    -- serial data output of i2c bus
+    scl         : inout std_logic                     -- serial clock output of i2c bus
+  );
+end entity i2c_top_slow;
 
 architecture Behavioral of i2c_top_slow is
 
@@ -51,7 +30,7 @@ architecture Behavioral of i2c_top_slow is
   signal i2c_ena     : std_logic;
   signal i2c_rw      : std_logic;
   signal data_in_sel : std_logic;
-  signal data_to_12c : std_logic_vector (7 downto 0);
+  signal data_to_12c : std_logic_vector(7 downto 0);
 
 begin
 
@@ -69,24 +48,26 @@ begin
       latch_word_2  => latch_word_2,
       data_in_sel   => data_in_sel,
       end_procedure => end_procedure
-      );
+    );
 
   i2c_master_0 : entity lsst_reb.i2c_master
-    generic map(
-      input_clk => 100_000_000,  --input clock speed from user logic in Hz
-      bus_clk   => 4_000)      --speed the i2c bus (scl) will run at in Hz
-    port map(
-      clk       => clk,                 --system clock
-      reset     => reset,               --active low reset
-      ena       => i2c_ena,             --latch in command
-      addr      => device_addr,         --address of target slave
-      rw        => i2c_rw,              --'0' is write, '1' is read
-      data_wr   => data_to_12c,         --data to write to slave
-      busy      => i2c_busy,            --indicates transaction in progress
-      data_rd   => data_rd,             --data read from slave
-      ack_error => ack_error,    --flag if improper acknowledge from slave
-      sda       => sda,                 --serial data output of i2c bus
-      scl       => scl);                --serial clock output of i2c bus
+    generic map (
+      input_clk => 100_000_000,
+      bus_clk   => 4_000
+    )
+    port map (
+      clk       => clk,
+      reset     => reset,
+      ena       => i2c_ena,
+      addr      => device_addr,
+      rw        => i2c_rw,
+      data_wr   => data_to_12c,
+      busy      => i2c_busy,
+      data_rd   => data_rd,
+      ack_error => ack_error,
+      sda       => sda,
+      scl       => scl
+    );
 
   data_in_mux : entity lsst_reb.mux_bus_2_8_bit_clk
     port map (
@@ -96,7 +77,7 @@ begin
       bus_in_0 => reg_add,
       bus_in_1 => data_wr,
       bus_out  => data_to_12c
-      );
+    );
 
-end Behavioral;
+end architecture Behavioral;
 

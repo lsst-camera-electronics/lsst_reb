@@ -1,76 +1,51 @@
-----------------------------------------------------------------------------------
--- Company:
--- Engineer:
---
--- Create Date:    16:24:09 12/03/2018
--- Design Name:
--- Module Name:    sequencer_v4_top - Behavioral
--- Project Name:
--- Target Devices:
--- Tool versions:
--- Description:
---
--- Dependencies:
---
--- Revision:
--- Revision 0.01 - File Created
--- Additional Comments:
---this version differs from v3 because the prog_mem_init reg is now getting
---outside of this block
-----------------------------------------------------------------------------------
 library IEEE;
 use IEEE.STD_LOGIC_1164.all;
-
-library UNISIM;
-use UNISIM.VComponents.all;
 
 library lsst_reb;
 
 entity sequencer_v4_top is
-
   port (
-    reset           : in  std_logic;    -- syncronus reset
-    clk             : in  std_logic;    -- clock
-    start_sequence  : in  std_logic;
-    program_mem_we  : in  std_logic;
-    seq_mem_w_add   : in  std_logic_vector(9 downto 0);
-    seq_mem_data_in : in  std_logic_vector(31 downto 0);
-    prog_mem_redbk  : out std_logic_vector(31 downto 0);
+    reset           : in    std_logic; -- syncronus reset
+    clk             : in    std_logic; -- clock
+    start_sequence  : in    std_logic;
+    program_mem_we  : in    std_logic;
+    seq_mem_w_add   : in    std_logic_vector(9 downto 0);
+    seq_mem_data_in : in    std_logic_vector(31 downto 0);
+    prog_mem_redbk  : out   std_logic_vector(31 downto 0);
 
-    program_mem_init_add_in  : in  std_logic_vector(9 downto 0);
-    program_mem_init_add_rbk : out std_logic_vector(9 downto 0);
+    program_mem_init_add_in  : in    std_logic_vector(9 downto 0);
+    program_mem_init_add_rbk : out   std_logic_vector(9 downto 0);
 
-    ind_func_mem_we    : in  std_logic;
-    ind_func_mem_redbk : out std_logic_vector(3 downto 0);
+    ind_func_mem_we    : in    std_logic;
+    ind_func_mem_redbk : out   std_logic_vector(3 downto 0);
 
-    ind_rep_mem_we    : in  std_logic;
-    ind_rep_mem_redbk : out std_logic_vector(23 downto 0);
+    ind_rep_mem_we    : in    std_logic;
+    ind_rep_mem_redbk : out   std_logic_vector(23 downto 0);
 
-    ind_sub_add_mem_we    : in  std_logic;
-    ind_sub_add_mem_redbk : out std_logic_vector(9 downto 0);
+    ind_sub_add_mem_we    : in    std_logic;
+    ind_sub_add_mem_redbk : out   std_logic_vector(9 downto 0);
 
-    ind_sub_rep_mem_we    : in  std_logic;
-    ind_sub_rep_mem_redbk : out std_logic_vector(15 downto 0);
+    ind_sub_rep_mem_we    : in    std_logic;
+    ind_sub_rep_mem_redbk : out   std_logic_vector(15 downto 0);
 
-    time_mem_w_en   : in  std_logic;
-    time_mem_readbk : out std_logic_vector(15 downto 0);
+    time_mem_w_en   : in    std_logic;
+    time_mem_readbk : out   std_logic_vector(15 downto 0);
 
-    out_mem_w_en   : in  std_logic;
-    out_mem_readbk : out std_logic_vector(31 downto 0);
+    out_mem_w_en   : in    std_logic;
+    out_mem_readbk : out   std_logic_vector(31 downto 0);
 
-    stop_sequence : in std_logic;
-    step_sequence : in std_logic;
+    stop_sequence : in    std_logic;
+    step_sequence : in    std_logic;
 
-    op_code_error_reset : in  std_logic;
-    op_code_error       : out std_logic;
-    op_code_error_add   : out std_logic_vector(9 downto 0);
+    op_code_error_reset : in    std_logic;
+    op_code_error       : out   std_logic;
+    op_code_error_add   : out   std_logic_vector(9 downto 0);
 
-    sequencer_busy : out std_logic;
-    sequencer_out  : out std_logic_vector(31 downto 0);
-    end_sequence   : out std_logic
-    );
-
-end sequencer_v4_top;
+    sequencer_busy : out   std_logic;
+    sequencer_out  : out   std_logic_vector(31 downto 0);
+    end_sequence   : out   std_logic
+  );
+end entity sequencer_v4_top;
 
 architecture Behavioral of sequencer_v4_top is
 
@@ -83,11 +58,11 @@ architecture Behavioral of sequencer_v4_top is
 
 begin
 
-   -- Reject triggers when sequencer is running
-   sequencer_busy      <= sequencer_busy_int;
-   sequencer_start_int <= start_sequence and not sequencer_busy_int;
+  -- Reject triggers when sequencer is running
+  sequencer_busy      <= sequencer_busy_int;
+  sequencer_start_int <= start_sequence and not sequencer_busy_int;
 
-   sequencer_parameter_extractor_top_v4_0 : entity lsst_reb.sequencer_parameter_extractor_top_v4
+  sequencer_parameter_extractor_top_v4_0 : entity lsst_reb.sequencer_parameter_extractor_top_v4
     port map (
       clk             => clk,
       reset           => reset,
@@ -120,7 +95,7 @@ begin
       prog_mem_redbk   => prog_mem_redbk,
       fifo_param_empty => fifo_param_empty,
       fifo_param_out   => fifo_param_out
-      );
+    );
 
   function_v3_top_0 : entity lsst_reb.function_v3_top
     port map (
@@ -147,7 +122,7 @@ begin
       sequencer_busy => sequencer_busy_int,
       sequencer_out  => sequencer_out,
       end_sequence   => end_sequence
-      );
+    );
 
-end Behavioral;
+end architecture Behavioral;
 

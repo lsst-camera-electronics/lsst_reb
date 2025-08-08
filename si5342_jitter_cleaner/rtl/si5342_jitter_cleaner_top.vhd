@@ -1,44 +1,23 @@
-----------------------------------------------------------------------------------
--- Company:
--- Engineer:
---
--- Create Date:    16:52:42 11/18/2016
--- Design Name:
--- Module Name:    si5342_jitter_cleaner_top - Behavioral
--- Project Name:
--- Target Devices:
--- Tool versions:
--- Description:
---
--- Dependencies:
---
--- Revision:
--- Revision 0.01 - File Created
--- Additional Comments:
---
-----------------------------------------------------------------------------------
 library IEEE;
 use IEEE.STD_LOGIC_1164.all;
 
 library lsst_reb;
 
 entity si5342_jitter_cleaner_top is
-
   port (
-    clk          : in  std_logic;
-    reset        : in  std_logic;
-    start_config : in  std_logic;
-    jc_config    : in  std_logic_vector(1 downto 0);
-    config_busy  : out std_logic;
-    jc_clk_ready : out std_logic;
-    jc_clk_in_en : out std_logic;
-    miso         : in  std_logic;
-    mosi         : out std_logic;
-    chip_select  : out std_logic;
-    sclk         : out std_logic
-    );
-
-end si5342_jitter_cleaner_top;
+    clk          : in    std_logic;
+    reset        : in    std_logic;
+    start_config : in    std_logic;
+    jc_config    : in    std_logic_vector(1 downto 0);
+    config_busy  : out   std_logic;
+    jc_clk_ready : out   std_logic;
+    jc_clk_in_en : out   std_logic;
+    miso         : in    std_logic;
+    mosi         : out   std_logic;
+    chip_select  : out   std_logic;
+    sclk         : out   std_logic
+  );
+end entity si5342_jitter_cleaner_top;
 
 architecture Behavioral of si5342_jitter_cleaner_top is
 
@@ -70,7 +49,8 @@ begin
       jc_in_clk_en    => jc_in_clk_en,
       page            => page,
       address         => address,
-      data_out        => data);
+      data_out        => data
+    );
 
   si5342_reg_write_fsm_1 : entity lsst_reb.si5342_reg_write_fsm
     port map (
@@ -83,12 +63,14 @@ begin
       data_in     => data,
       start_spi   => start_spi,
       link_busy   => link_busy,
-      data_to_spi => data_to_spi);
+      data_to_spi => data_to_spi
+    );
 
   SPI_write_BusyatStart_1 : entity lsst_reb.SPI_write_BusyatStart
     generic map (
       clk_divide  => 5,
-      num_bit_max => 16)
+      num_bit_max => 16
+    )
     port map (
       clk         => clk,
       reset       => reset,
@@ -97,7 +79,8 @@ begin
       busy        => spi_busy,
       mosi        => mosi,
       ss          => chip_select,
-      sclk        => sclk);
+      sclk        => sclk
+    );
 
   clk_ready_ff : entity lsst_reb.ff_ce
     port map (
@@ -105,7 +88,8 @@ begin
       clk      => clk,
       data_in  => jc_clk_ready_int,
       ce       => jc_clk_ready_en,
-      data_out => jc_clk_ready);
+      data_out => jc_clk_ready
+    );
 
   clk_in_ff : entity lsst_reb.ff_ce
     port map (
@@ -113,7 +97,8 @@ begin
       clk      => clk,
       data_in  => jc_clk_ready_int,
       ce       => jc_in_clk_en,
-      data_out => jc_clk_in_en);
+      data_out => jc_clk_in_en
+    );
 
-end Behavioral;
+end architecture Behavioral;
 

@@ -1,70 +1,49 @@
-----------------------------------------------------------------------------------
--- Company:
--- Engineer:
---
--- Create Date:    14:03:28 14/09/2018
--- Design Name:
--- Module Name:    multiboot_top - Behavioral
--- Project Name:
--- Target Devices:
--- Tool versions:
--- Description:
---
--- Dependencies:
---
--- Revision:
--- Revision 0.01 - File Created
--- Additional Comments:
---
-----------------------------------------------------------------------------------
 library IEEE;
 use IEEE.STD_LOGIC_1164.all;
 
 library UNISIM;
-use UNISIM.VComponents.all;
+use UNISIM.vcomponents.all;
 
 library surf;
+
 library lsst_reb;
 
 entity multiboot_top is
-
   port (
     -- Clock and control signals
-    inBitstreamClk  : in std_logic;
-    inSpiClk        : in std_logic;
-    inReset_EnableB : in std_logic;
-    inCheckIdOnly   : in std_logic;
-    inVerifyOnly    : in std_logic;
+    inBitstreamClk  : in    std_logic;
+    inSpiClk        : in    std_logic;
+    inReset_EnableB : in    std_logic;
+    inCheckIdOnly   : in    std_logic;
+    inVerifyOnly    : in    std_logic;
 
     -- DAQ signals
-    inStartProg   : in std_logic;
-    inDaqDone     : in std_logic;
-    inStartReboot : in std_logic;
+    inStartProg   : in    std_logic;
+    inDaqDone     : in    std_logic;
+    inStartReboot : in    std_logic;
 
     -- Image selector
-    inImageSelWe         : in  std_logic;
-    inImageSel           : in  std_logic_vector(1 downto 0);
+    inImageSelWe : in    std_logic;
+    inImageSel   : in    std_logic_vector(1 downto 0);
     -- Data
-    inBitstreamWe        : in  std_logic;
-    inBitstream32        : in  std_logic_vector(31 downto 0);
-    outBitstreamFifoFull : out std_logic;
+    inBitstreamWe        : in    std_logic;
+    inBitstream32        : in    std_logic_vector(31 downto 0);
+    outBitstreamFifoFull : out   std_logic;
 
-    outStarted   : out std_logic;
-    outStatusReg : out std_logic_vector(15 downto 0);
+    outStarted   : out   std_logic;
+    outStatusReg : out   std_logic_vector(15 downto 0);
 
-    outRebootStatus : out std_logic_vector(31 downto 0);
+    outRebootStatus : out   std_logic_vector(31 downto 0);
 
     -- SPI flash ports
     -- outSpiClk is output through STARTUPE2.USRCCLKO
-    outSpiCsB   : out std_logic;
-    outSpiMosi  : out std_logic;
-    inSpiMiso   : in  std_logic;
-    outSpiWpB   : out std_logic;        -- SPI flash write protect
-    outSpiHoldB : out std_logic
-    );
-
-
-end multiboot_top;
+    outSpiCsB   : out   std_logic;
+    outSpiMosi  : out   std_logic;
+    inSpiMiso   : in    std_logic;
+    outSpiWpB   : out   std_logic;        -- SPI flash write protect
+    outSpiHoldB : out   std_logic
+  );
+end entity multiboot_top;
 
 architecture Behaviotal of multiboot_top is
 
@@ -85,7 +64,6 @@ architecture Behaviotal of multiboot_top is
   signal DaqDone_str1 : std_logic;
   signal DaqDone_str2 : std_logic;
   signal DaqDone_str3 : std_logic;
-
 
   -- Status signals
   signal Done            : std_logic;
@@ -125,7 +103,6 @@ architecture Behaviotal of multiboot_top is
   signal icap_out        : std_logic_vector(31 downto 0);
   signal Icap_out_reg    : std_logic_vector(31 downto 0);
 
-
 begin  -- Behaviotal
 
   DataWriteEnable <= not bitstream_fifo_empty;
@@ -133,20 +110,50 @@ begin  -- Behaviotal
   status_int <= "0000" & '0' & Done & ErrorIdcode & ErrorErase & ErrorProgram & ErrorTimeOut & ErrorAddSel &
                 ErrorBitstmSize & InitializeOK & CheckIdOK & EraseOK & ProgramOK;
 
-  outSpiWpB   <= '1';             -- SPI flash write protect
+  outSpiWpB   <= '1'; -- SPI flash write protect
   outSpiHoldB <= '1';
 
   -- sync stages from inBitstreamClk to inSpiClk
 
   -- pulse streatcher to cross clock domanin
-  flop1_mbs : FD port map (D => inStartProg, C => inBitstreamClk, Q => StartProg_str);
-  flop2_mbs : FD port map (D => StartProg_str, C => inBitstreamClk, Q => StartProg_str1);
-  flop3_mbs : FD port map (D => StartProg_str1, C => inBitstreamClk, Q => StartProg_str2);
-  flop4_mbs : FD port map (D => StartProg_str2, C => inBitstreamClk, Q => StartProg_str3);
+  flop1_mbs : component FD
+    port map (
+      D => inStartProg,
+      C => inBitstreamClk,
+      Q => StartProg_str
+    );
+
+  flop2_mbs : component FD
+    port map (
+      D => StartProg_str,
+      C => inBitstreamClk,
+      Q => StartProg_str1
+    );
+
+  flop3_mbs : component FD
+    port map (
+      D => StartProg_str1,
+      C => inBitstreamClk,
+      Q => StartProg_str2
+    );
+
+  flop4_mbs : component FD
+    port map (
+      D => StartProg_str2,
+      C => inBitstreamClk,
+      Q => StartProg_str3
+    );
 
   StartProg <= StartProg_str or StartProg_str1 or StartProg_str2 or StartProg_str3;
 
-  DaqDone_latch : FDCE port map (D => '1', C => inBitstreamClk, Q => DaqDone, CE => inDaqDone, CLR => Done);
+  DaqDone_latch : component FDCE
+    port map (
+      D   => '1',
+      C   => inBitstreamClk,
+      Q   => DaqDone,
+      CE  => inDaqDone,
+      CLR => Done
+    );
 
   bitstream_fifo : entity surf.FifoAsync
     generic map (
@@ -155,7 +162,8 @@ begin  -- Behaviotal
       FWFT_EN_G     => true,
       SYNC_STAGES_G => 3,
       DATA_WIDTH_G  => 32,
-      ADDR_WIDTH_G  => 9)
+      ADDR_WIDTH_G  => 9
+    )
     port map (
       rst    => inReset_EnableB,
       wr_clk => inBitstreamClk,
@@ -165,11 +173,13 @@ begin  -- Behaviotal
       rd_en  => Ready_BusyB,
       dout   => Data32,
       full   => outBitstreamFifoFull,
-      empty  => bitstream_fifo_empty);
+      empty  => bitstream_fifo_empty
+    );
 
   slot_ID_reg : entity lsst_reb.generic_reg_ce_init
     generic map (
-      width => 1)
+      width => 1
+    )
     port map (
       reset    => inReset_EnableB,
       clk      => inBitstreamClk,
@@ -177,13 +187,14 @@ begin  -- Behaviotal
       init     => '0',
       data_in  => inImageSel,
       data_out => ImageSel
-      );
+    );
 
   status_or <= status_int or status_reg;
 
   status_register : entity lsst_reb.generic_reg_ce_init
     generic map (
-      width => 15)
+      width => 15
+    )
     port map (
       reset    => inReset_EnableB,
       clk      => inSpiClk,
@@ -191,11 +202,12 @@ begin  -- Behaviotal
       init     => StartProg,
       data_in  => status_or,
       data_out => status_reg
-      );
+    );
 
   status_sync_1 : entity lsst_reb.generic_reg_ce_init
     generic map (
-      width => 15)
+      width => 15
+    )
     port map (
       reset    => inReset_EnableB,
       clk      => inBitstreamClk,
@@ -203,8 +215,7 @@ begin  -- Behaviotal
       init     => '0',
       data_in  => status_reg,
       data_out => outStatusReg
-      );
-
+    );
 
   SpiFlashProgrammer_multiboot_1 : entity lsst_reb.SpiFlashProgrammer_multiboot
     port map (
@@ -236,13 +247,11 @@ begin  -- Behaviotal
       outSSDStartTransfer => SSDStartTransfer,
       inSSDTransferDone   => SSDTransferDone,
       outSSDData8Send     => SSDData8Send,
-      inSSDData8Receive   => SSDData8Receive);
+      inSSDData8Receive   => SSDData8Receive
+    );
 
-
-
-
-  iSpiSerDes : entity lsst_reb.SpiSerDes port map
-    (
+  iSpiSerDes : entity lsst_reb.SpiSerDes
+    port map (
       inClk           => inSpiClk,
       inReset_EnableB => SSDReset_EnableB,
       inStartTransfer => SSDStartTransfer,
@@ -253,24 +262,25 @@ begin  -- Behaviotal
       outSpiClk       => intSpiClk,
       outSpiMosi      => outSpiMosi,
       inSpiMiso       => inSpiMiso
-      );
+    );
 
-  STARTUPE2_inst : STARTUPE2
+  STARTUPE2_inst : component STARTUPE2
     port map (
       CLK       => '0',
-      GSR       => '0',  -- 1-bit input: Global Set/Reset input (GSR cannot be used for the port name)
-      GTS       => '0',  -- 1-bit input: Global 3-state input (GTS cannot be used for the port name)
+      GSR       => '0',
+      GTS       => '0',
       KEYCLEARB => '1',
-      PACK      => '1',  -- 1-bit input: PROGRAM acknowledge input
-      USRCCLKO  => intSpiClk,           -- 1-bit input: User CCLK input
+      PACK      => '1',
+      USRCCLKO  => intSpiClk,
       USRCCLKTS => '0',
       USRDONEO  => '1',
       USRDONETS => '1'
-      );
+    );
 
   slot_ID_reboot_reg : entity lsst_reb.generic_reg_ce_init
     generic map (
-      width => 1)
+      width => 1
+    )
     port map (
       reset    => inReset_EnableB,
       clk      => inBitstreamClk,
@@ -278,16 +288,38 @@ begin  -- Behaviotal
       init     => '0',
       data_in  => inImageSel,
       data_out => ImageSel_reboot
-      );
+    );
 
--- pulse streatcher to cross clock domanin
-  flop1_rb : FD port map (D => inStartReboot, C => inBitstreamClk, Q => StartReboot_str);
-  flop2_rb : FD port map (D => StartReboot_str, C => inBitstreamClk, Q => StartReboot_str1);
-  flop3_rb : FD port map (D => StartReboot_str1, C => inBitstreamClk, Q => StartReboot_str2);
-  flop4_rb : FD port map (D => StartReboot_str2, C => inBitstreamClk, Q => StartReboot_str3);
+  -- pulse streatcher to cross clock domanin
+  flop1_rb : component FD
+    port map (
+      D => inStartReboot,
+      C => inBitstreamClk,
+      Q => StartReboot_str
+    );
+
+  flop2_rb : component FD
+    port map (
+      D => StartReboot_str,
+      C => inBitstreamClk,
+      Q => StartReboot_str1
+    );
+
+  flop3_rb : component FD
+    port map (
+      D => StartReboot_str1,
+      C => inBitstreamClk,
+      Q => StartReboot_str2
+    );
+
+  flop4_rb : component FD
+    port map (
+      D => StartReboot_str2,
+      C => inBitstreamClk,
+      Q => StartReboot_str3
+    );
 
   StartReboot <= StartReboot_str or StartReboot_str1 or StartReboot_str2 or StartReboot_str3;
-
 
   multiboot_fsm_1 : entity lsst_reb.multiboot_fsm_read
     port map (
@@ -296,11 +328,13 @@ begin  -- Behaviotal
       RESET          => inReset_EnableB,
       IMAGESEL       => ImageSel_reboot,
       ICAP_OUT_VALID => icap_out_we,
-      ICAP_OUT       => icap_out);
+      ICAP_OUT       => icap_out
+    );
 
   Icap_out_reg1 : entity lsst_reb.generic_reg_ce_init
     generic map (
-      width => 31)
+      width => 31
+    )
     port map (
       reset    => inReset_EnableB,
       clk      => inSpiClk,
@@ -308,7 +342,8 @@ begin  -- Behaviotal
       init     => '0',
       data_in  => icap_out,
       data_out => icap_out_reg
-      );
+    );
+
   outRebootStatus <= icap_out_reg;
 
-end Behaviotal;
+end architecture Behaviotal;
