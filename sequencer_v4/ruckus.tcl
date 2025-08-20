@@ -2,6 +2,8 @@
 source $::env(RUCKUS_PROC_TCL)
 
 # Load Source Code
+loadSource -lib lsst_reb -path "$::DIR_PATH/SequencerPkg.vhd"
+loadSource -lib lsst_reb -path "$::DIR_PATH/Sequencer.vhd"
 loadSource -lib lsst_reb -path "$::DIR_PATH/sequencer_v3_package.vhd"
 loadSource -lib lsst_reb -path "$::DIR_PATH/sequencer_v4_top.vhd"
 loadSource -lib lsst_reb -path "$::DIR_PATH/func_handler_v4/sequencer_parameter_extractor_top_v4.vhd"
