@@ -7,6 +7,9 @@ use lsst_reb.basic_elements_pkg.all;
 
 entity dual_ad53xx_DAC_protection_top is
   generic (
+    GD_add  : std_logic_vector(3 downto 0);
+    OD_add  : std_logic_vector(3 downto 0);
+    RD_add  : std_logic_vector(3 downto 0);
     GD_0_th : integer range 0 to 2**12-1 := 1138; -- equivalent to x"472"
     OD_0_th : integer range 0 to 2**12-1 := 2275; -- equivalent to x"8E3"
     RD_0_th : integer range 0 to 2**12-1 := 1632; -- equivalent to x"660"
@@ -54,10 +57,6 @@ architecture Behavioral of dual_ad53xx_DAC_protection_top is
   signal values_under_th_i : std_logic_vector(5 downto 0);
 
   signal first_reset_done_i : unsigned(0 downto 0);
-
-  constant GD_add : std_logic_vector(3 downto 0) := x"0";
-  constant OD_add : std_logic_vector(3 downto 0) := x"5";
-  constant RD_add : std_logic_vector(3 downto 0) := x"1";
 
   signal GD_0_th_int : std_logic_vector(11 downto 0);
   signal OD_0_th_int : std_logic_vector(11 downto 0);

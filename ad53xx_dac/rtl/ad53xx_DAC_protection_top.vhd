@@ -6,9 +6,12 @@ library lsst_reb;
 
 entity ad53xx_DAC_protection_top is
   generic (
-    GD_th : integer range 0 to 2**12-1 := 1138; -- equivalent to x"472"
-    OD_th : integer range 0 to 2**12-1 := 2275; -- equivalent to x"8E3"
-    RD_th : integer range 0 to 2**12-1 := 1632  -- equivalent to x"660"
+    GD_add : std_logic_vector(3 downto 0);
+    OD_add : std_logic_vector(3 downto 0);
+    RD_add : std_logic_vector(3 downto 0);
+    GD_th  : integer range 0 to 2**12-1 := 1138; -- equivalent to x"472"
+    OD_th  : integer range 0 to 2**12-1 := 2275; -- equivalent to x"8E3"
+    RD_th  : integer range 0 to 2**12-1 := 1632  -- equivalent to x"660"
   );
   port (
     clk             : in    std_logic;
@@ -39,10 +42,6 @@ architecture Behavioral of ad53xx_DAC_protection_top is
   signal command_error_i    : std_logic_vector(2 downto 0);
   signal values_under_th_i  : std_logic_vector(2 downto 0);
   signal first_reset_done_i : unsigned(0 downto 0);
-
-  constant GD_add : std_logic_vector(3 downto 0) := x"0";
-  constant OD_add : std_logic_vector(3 downto 0) := x"5";
-  constant RD_add : std_logic_vector(3 downto 0) := x"1";
 
   signal GD_th_int : std_logic_vector(11 downto 0);
   signal OD_th_int : std_logic_vector(11 downto 0);
