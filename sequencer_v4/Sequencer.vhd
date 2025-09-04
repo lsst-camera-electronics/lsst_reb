@@ -70,28 +70,11 @@ architecture Behavioral of Sequencer is
   signal sequencer_stop              : std_logic_vector(NUM_SEQUENCERS_G-1 downto 0);
   signal sequencer_step              : std_logic_vector(NUM_SEQUENCERS_G-1 downto 0);
 
-  --signal sequencer_start_addr_rd_int : Slv10Array(NUM_SEQUENCERS_G-1 downto 0);
-  --signal prog_mem_rd_int             : Slv32Array(NUM_SEQUENCERS_G-1 downto 0);
-  --signal ind_func_mem_rd_int         : Slv4Array (NUM_SEQUENCERS_G-1 downto 0);
-  --signal ind_rep_mem_rd_int          : Slv24Array(NUM_SEQUENCERS_G-1 downto 0);
-  --signal ind_sub_add_mem_rd_int      : Slv10Array(NUM_SEQUENCERS_G-1 downto 0);
-  --signal ind_sub_rep_mem_rd_int      : Slv16Array(NUM_SEQUENCERS_G-1 downto 0);
-  --signal time_mem_rd_int             : Slv16Array(NUM_SEQUENCERS_G-1 downto 0);
-  --signal out_mem_rd_int              : Slv32Array(NUM_SEQUENCERS_G-1 downto 0);
-  --signal op_code_error_int           : std_logic_vector(NUM_SEQUENCERS_G-1 downto 0);
-  --signal op_code_error_add_int       : Slv10Array(NUM_SEQUENCERS_G-1 downto 0);
-  --signal override_rd_int             : Slv32Array(NUM_SENSORS_G-1 downto 0);
-  --signal sequencer_busy_int          : std_logic_vector(NUM_SEQUENCERS_G-1 downto 0);
-  --signal end_sequence_int            : std_logic_vector(NUM_SEQUENCERS_G-1 downto 0);
-  --signal enable_conv_shift_out_int   : std_logic_vector(NUM_SEQUENCERS_G-1 downto 0);
-
-
   signal sequencer_unaligned : Slv32Array(NUM_SEQUENCERS_G-1 downto 0);
   signal sequencer_aligned   : Slv32Array(NUM_SEQUENCERS_G-1 downto 0);
 
   signal sequencer_override  : Slv32Array(NUM_SENSORS_G-1 downto 0);
   signal sequencer_masked    : Slv32Array(NUM_SENSORS_G-1 downto 0);
-
 
 begin
 
@@ -186,6 +169,7 @@ begin
       port map (
         clk   => clk,
         rst   => rst,
+        en    => override_we(s),
         sig_i => regDataWr,
         reg_o => sequencer_override(s)
       );
