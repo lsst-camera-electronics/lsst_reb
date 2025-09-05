@@ -68,7 +68,7 @@ architecture Behavioral of ltc2945_multi_read_top_greb is
 
 begin
 
-  ltc2945_multi_read_greb_fsm_0 : entity lsst_reb.ltc2945_multi_read_greb_fsm
+  ltc2945_multi_read_fsm_greb_0 : entity lsst_reb.ltc2945_multi_read_fsm_greb
     port map (
       clk             => clk,
       reset           => reset,

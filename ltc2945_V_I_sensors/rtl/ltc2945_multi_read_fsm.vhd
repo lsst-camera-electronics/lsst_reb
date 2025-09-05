@@ -1,9 +1,6 @@
 library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 
-library lsst_reb;
-use lsst_reb.ltc2945_add_package.all;
-
 entity ltc2945_multi_read_fsm is
   port (
     clk             : in    std_logic;
@@ -35,6 +32,14 @@ architecture Behavioral of ltc2945_multi_read_fsm is
   signal next_device_addr       : STD_LOGIC_VECTOR(6 DOWNTO 0);
   signal next_reg_add           : std_logic_vector(7 downto 0);
   signal next_latch_en_bus      : std_logic_vector(7 downto 0);
+
+  constant V6_dev_add  : std_logic_vector(6 downto 0) := x"D" & "111";
+  constant V24_dev_add : std_logic_vector(6 downto 0) := x"D" & "011";
+  constant V40_dev_add : std_logic_vector(6 downto 0) := x"D" & "110";
+  constant V9_dev_add  : std_logic_vector(6 downto 0) := x"D" & "010";
+
+  constant V_reg_add : std_logic_vector(7 downto 0) := x"1E";
+  constant I_reg_add : std_logic_vector(7 downto 0) := x"14";
 
 begin
 

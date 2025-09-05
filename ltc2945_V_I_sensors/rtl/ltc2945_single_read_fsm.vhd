@@ -1,9 +1,6 @@
 library IEEE;
 use IEEE.STD_LOGIC_1164.all;
 
-library lsst_reb;
-use lsst_reb.ltc2945_add_package.all;
-
 entity ltc2945_single_read_fsm is
   port (
     clk             : in    std_logic;
@@ -34,7 +31,7 @@ architecture Behavioral of ltc2945_single_read_fsm is
   signal next_i2c_data_wr       : std_logic_vector(7 downto 0);
   signal next_latch_en_bus      : std_logic_vector(1 downto 0);
 
-  constant V1_dev_add : std_logic_vector(6 downto 0) := x"D" & "001";
+  constant V1_dev_add : std_logic_vector(6 downto 0) := x"D" & "010";
 
   constant control_add  : std_logic_vector(7 downto 0) := x"00";
   constant control_word : std_logic_vector(7 downto 0) := x"01";

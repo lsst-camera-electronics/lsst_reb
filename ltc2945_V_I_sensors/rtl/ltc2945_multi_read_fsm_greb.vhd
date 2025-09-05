@@ -1,7 +1,7 @@
 library IEEE;
 use IEEE.STD_LOGIC_1164.all;
 
-entity ltc2945_multi_read_greb_fsm is
+entity ltc2945_multi_read_fsm_greb is
   port (
     clk             : in    std_logic;
     reset           : in    std_logic;
@@ -14,9 +14,9 @@ entity ltc2945_multi_read_greb_fsm is
     reg_add      : out   std_logic_vector(7 downto 0);
     latch_en_bus : out   std_logic_vector(9 downto 0)
   );
-end entity ltc2945_multi_read_greb_fsm;
+end entity ltc2945_multi_read_fsm_greb;
 
-architecture Behavioral of ltc2945_multi_read_greb_fsm is
+architecture Behavioral of ltc2945_multi_read_fsm_greb is
 
   type state_type is (
     wait_start,
