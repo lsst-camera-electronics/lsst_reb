@@ -207,6 +207,7 @@ begin
     sequencer_out(s).adc_trigger   <= sequencer_masked(s)(12);
     sequencer_out(s).soi           <= sequencer_masked(s)(13);
     sequencer_out(s).eoi           <= sequencer_masked(s)(14);
+    sequencer_out(s).cabac_pulse   <= sequencer_masked(s)(15);
     sequencer_out(s).pattern_reset <= sequencer_masked(s)(16);
     sequencer_out(s).user_bit      <= sequencer_masked(s)(31);
 

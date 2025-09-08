@@ -15,6 +15,7 @@ package SequencerPkg is
     soi           : std_logic;
     eoi           : std_logic;
     pattern_reset : std_logic;
+    cabac_pulse   : std_logic;
     user_bit      : std_logic;
   end record SequencerOutputType;
 
