@@ -312,6 +312,18 @@ begin
         --        stateProgrammer     <= sProgrammerInitialize;
         stateProgrammer <= sProgrammerWaitStart;
 
+        regAddrUpdateEnd   <= (others => '0');
+        regAddrUpdateStart <= (others => '0');
+        regCounter3        <= (others => '0');
+        regCounter10       <= (others => '0');
+        regCounter32       <= (others => '0');
+        regSSDResetAfterSendWord <= '0';
+        regTimer <= (others => '0');
+        stateAfterSendWord <= sProgrammerInitialize;
+        stateAfterPollStatus <= sProgrammerInitialize;
+        stateErrorTimeOut <= sProgrammerInitialize;
+
+
         state_cnt <= x"00";
       else
 

@@ -90,6 +90,7 @@ begin
         d_from_slave_ready <= '0';
         clk_cnt            <= 0;
         bit_cnt            <= 0;
+        reset_cnt          <= 0;
       else
         pres_state   <= next_state;
         load_data    <= next_load_data;

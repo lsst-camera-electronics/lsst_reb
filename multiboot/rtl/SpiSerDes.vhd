@@ -136,7 +136,6 @@ entity SpiSerDes is
 end entity SpiSerDes;
 
 architecture behavioral of SpiSerDes is
-
   -- Constants
   constant cShiftCountInit : std_logic_vector(8 downto 0) := B"000000001";
 
