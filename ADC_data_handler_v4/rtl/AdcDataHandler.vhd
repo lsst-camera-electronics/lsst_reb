@@ -37,15 +37,18 @@ end entity AdcDataHandler;
 
 architecture behavioral of AdcDataHandler is
 
-  signal ccd_oe : std_logic_vector(NUM_SENSORS_G-1 downto 0);
-
+  signal ccd_oe       : std_logic_vector(NUM_SENSORS_G-1 downto 0);
   signal sci_data_int : LsstSciImageDataArray(NUM_SENSORS_G-1 downto 0);
-  signal sot_int      : std_logic_vector(NUM_SENSORS_G-1 downto 0);
-  signal eot_int      : std_logic_vector(NUM_SENSORS_G-1 downto 0);
-  signal we_int       : std_logic_vector(NUM_SENSORS_G-1 downto 0);
-  signal data_int     : Slv18Array(NUM_SENSORS_G-1 downto 0);
 
-  signal sensor_mask  : std_logic_vector(2 downto 0);
+  signal sot_int      : std_logic_vector(NUM_SENSORS_G-1 downto 0) := (others => '0');
+  signal eot_int      : std_logic_vector(NUM_SENSORS_G-1 downto 0) := (others => '0');
+  signal we_int       : std_logic_vector(NUM_SENSORS_G-1 downto 0) := (others => '0');
+  signal data_int     : Slv18Array(NUM_SENSORS_G-1 downto 0) := (others => (others => '0'));
+
+  signal sensor_mask  : std_logic_vector(2 downto 0) := "000";
+  signal adc_data_int : Slv16Array(2 downto 0) := (others => (others => '0'));
+  signal adc_cnv_int  : std_logic_vector(2 downto 0) := (others => '0');
+  signal adc_sck_int  : std_logic_vector(2 downto 0) := (others => '0');
 
 begin
 
@@ -53,13 +56,22 @@ begin
     report "The number of sequencers must be 1 or equal to the number of sensors."
     severity failure;
 
-  with NUM_SENSORS_G select
-    sensor_mask <= "001" when 1,
-                   "011" when 2,
-                   "111" when 3,
-                   "000" when others;
-
   one_sequencer_gen : if NUM_SEQUENCERS_G = 1 generate
+
+    with NUM_SENSORS_G select
+      sensor_mask <= "001" when 1,
+                     "011" when 2,
+                     "111" when 3,
+                     "000" when others;
+
+    map_inputs: for i in 0 to 2 generate
+      map_valid: if i < NUM_SENSORS_G generate
+        adc_data_int(i) <= adc_data(i);
+      end generate;
+      map_default: if i >= NUM_SENSORS_G generate
+        adc_data_int(i) <= (others => '0');
+      end generate;
+    end generate;
 
     Image_data_handler_0 : entity lsst_reb.ADC_data_handler_v4
       port map (
@@ -81,17 +93,21 @@ begin
         write_enable      => we_int(0),
         data_out          => data_int(0),
         test_mode_enb_out => test_mode_enb_out(0),
-        adc_data_ccd_1    => adc_data(0),
-        adc_cnv_ccd_1     => adc_cnv(0),
-        adc_sck_ccd_1     => adc_sck(0),
-        adc_data_ccd_2    => adc_data(1),
-        adc_cnv_ccd_2     => adc_cnv(1),
-        adc_sck_ccd_2     => adc_sck(1),
-        adc_data_ccd_3    => adc_data(2),
-        adc_cnv_ccd_3     => adc_cnv(2),
-        adc_sck_ccd_3     => adc_sck(2)
+        adc_data_ccd_1    => adc_data_int(0),
+        adc_cnv_ccd_1     => adc_cnv_int(0),
+        adc_sck_ccd_1     => adc_sck_int(0),
+        adc_data_ccd_2    => adc_data_int(1),
+        adc_cnv_ccd_2     => adc_cnv_int(1),
+        adc_sck_ccd_2     => adc_sck_int(1),
+        adc_data_ccd_3    => adc_data_int(2),
+        adc_cnv_ccd_3     => adc_cnv_int(2),
+        adc_sck_ccd_3     => adc_sck_int(2)
       );
 
+    map_outputs: for i in 0 to NUM_SENSORS_G-1 generate
+      adc_cnv(i) <= adc_cnv_int(i);
+      adc_sck(i) <= adc_sck_int(i);
+    end generate;
 
   end generate one_sequencer_gen;
 
@@ -248,15 +264,6 @@ begin
       reg_o => ccd_oe
     );
 
-  sequencer_loop : for i in 0 to NUM_SENSORS_G-1 generate
-
-    sci_data_int(i).wrEn <= ccd_oe(i) and we_int(i);
-    sci_data_int(i).sot  <= sot_int(i);
-    sci_data_int(i).eot  <= eot_int(i);
-    sci_data_int(i).data <= data_int(i);
-
-  end generate sequencer_loop;
-
   -- Set unused outputs to '0' when NUM_SENSORS_G > NUM_SEQUENCERS_G
   unused_outputs_generate : if NUM_SENSORS_G > NUM_SEQUENCERS_G generate
     unused_range_generate : for i in NUM_SEQUENCERS_G to NUM_SENSORS_G-1 generate
@@ -266,6 +273,17 @@ begin
         data_int(i) <= (others => '0');
     end generate unused_range_generate;
   end generate unused_outputs_generate;
+
+  sequencer_loop : for i in 0 to NUM_SENSORS_G-1 generate
+
+    sci_data_int(i).wrEn <= ccd_oe(i) and we_int(i);
+    sci_data_int(i).sot  <= sot_int(i);
+    sci_data_int(i).eot  <= eot_int(i);
+    sci_data_int(i).data <= data_int(i);
+
+  end generate sequencer_loop;
+
+
 
   ccd_oe_rd <= ccd_oe;
   sci_data <= sci_data_int;
