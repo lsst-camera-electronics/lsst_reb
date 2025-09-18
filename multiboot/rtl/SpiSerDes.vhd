@@ -150,8 +150,8 @@ architecture behavioral of SpiSerDes is
   signal intTransferDone : std_logic;
 
   -- Attributes
-  attribute clock_signal    : string;
-  attribute clock_signal of inClk : signal is "yes";
+  --attribute clock_signal    : string;
+  --attribute clock_signal of inClk : signal is "yes";
 
 begin
 

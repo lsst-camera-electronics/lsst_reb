@@ -18,7 +18,8 @@ end entity generic_single_port_ram;
 
 architecture Behavioral of generic_single_port_ram is
 
-  type ram_type is array (2**add_width-1 downto 0) of std_logic_vector(data_width-1 downto 0);
+  constant RAM_DEPTH : integer := 2**add_width;
+  type ram_type is array (RAM_DEPTH-1 downto 0) of std_logic_vector(data_width-1 downto 0);
 
   signal ram : ram_type;
 

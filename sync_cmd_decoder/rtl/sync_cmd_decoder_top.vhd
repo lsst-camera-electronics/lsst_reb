@@ -68,18 +68,22 @@ begin
       stretch_out => sync_cmd_en_stretch
     );
 
-  ff1_en : component FD
+  ff1_en : component FDRE
     port map (
-      D => sync_cmd_en_stretch,
-      C => clk,
-      Q => sync_cmd_en_sync1
+      CE => '1',
+      R  => '0',
+      D  => sync_cmd_en_stretch,
+      C  => clk,
+      Q  => sync_cmd_en_sync1
     );
 
-  ff2_en : component FD
+  ff2_en : component FDRE
     port map (
-      D => sync_cmd_en_sync1,
-      C => clk,
-      Q => sync_cmd_en_sync
+      CE => '1',
+      R  => '0',
+      D  => sync_cmd_en_sync1,
+      C  => clk,
+      Q  => sync_cmd_en_sync
     );
 
   sync_cmd_decoder_1 : entity lsst_reb.sync_cmd_decoder

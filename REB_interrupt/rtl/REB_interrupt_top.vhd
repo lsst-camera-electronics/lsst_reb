@@ -3,6 +3,7 @@ use IEEE.STD_LOGIC_1164.all;
 use ieee.std_logic_misc.all;
 
 library UNISIM;
+use UNISIM.VCOMPONENTS.all;
 
 library lsst_reb;
 
@@ -58,11 +59,13 @@ begin
 
   edge_detector_generate : for i in 0 to interrupt_bus_width-1 generate
 
-    edge_detect_ff : component FD
+    edge_detect_ff : component FDRE
       port map (
-        D => interrupt_bus_in_masked(i),
-        C => clk,
-        Q => edge_in_bus(i)
+        CE => '1',
+        R  => '0',
+        D  => interrupt_bus_in_masked(i),
+        C  => clk,
+        Q  => edge_in_bus(i)
       );
 
     posedge_out_bus(i) <= (interrupt_bus_in_masked(i) and not edge_in_bus(i)) and edge_en(i);
@@ -78,11 +81,13 @@ begin
   interrupt_en_out_int <= (or_reduce(edge_out_bus));
 
   -- delay to allign the interput enable with the interrupt out bus
-  interrupt_en_ff : component FD
+  interrupt_en_ff : component FDRE
     port map (
-      D => interrupt_en_out_int,
-      C => clk,
-      Q => interrupt_en_out
+      CE => '1',
+      R  => '0',
+      D  => interrupt_en_out_int,
+      C  => clk,
+      Q  => interrupt_en_out
     );
 
   interrupt_out_reg : entity lsst_reb.generic_reg_ce_init

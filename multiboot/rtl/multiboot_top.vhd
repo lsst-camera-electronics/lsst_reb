@@ -116,32 +116,40 @@ begin  -- Behaviotal
   -- sync stages from inBitstreamClk to inSpiClk
 
   -- pulse streatcher to cross clock domanin
-  flop1_mbs : component FD
+  flop1_mbs : component FDRE
     port map (
-      D => inStartProg,
-      C => inBitstreamClk,
-      Q => StartProg_str
+      CE => '1',
+      R  => '0',
+      D  => inStartProg,
+      C  => inBitstreamClk,
+      Q  => StartProg_str
     );
 
-  flop2_mbs : component FD
+  flop2_mbs : component FDRE
     port map (
-      D => StartProg_str,
-      C => inBitstreamClk,
-      Q => StartProg_str1
+      CE => '1',
+      R  => '0',
+      D  => StartProg_str,
+      C  => inBitstreamClk,
+      Q  => StartProg_str1
     );
 
-  flop3_mbs : component FD
+  flop3_mbs : component FDRE
     port map (
-      D => StartProg_str1,
-      C => inBitstreamClk,
-      Q => StartProg_str2
+      CE => '1',
+      R  => '0',
+      D  => StartProg_str1,
+      C  => inBitstreamClk,
+      Q  => StartProg_str2
     );
 
-  flop4_mbs : component FD
+  flop4_mbs : component FDRE
     port map (
-      D => StartProg_str2,
-      C => inBitstreamClk,
-      Q => StartProg_str3
+      CE => '1',
+      R  => '0',
+      D  => StartProg_str2,
+      C  => inBitstreamClk,
+      Q  => StartProg_str3
     );
 
   StartProg <= StartProg_str or StartProg_str1 or StartProg_str2 or StartProg_str3;
@@ -291,32 +299,40 @@ begin  -- Behaviotal
     );
 
   -- pulse streatcher to cross clock domanin
-  flop1_rb : component FD
+  flop1_rb : component FDRE
     port map (
-      D => inStartReboot,
-      C => inBitstreamClk,
-      Q => StartReboot_str
+      CE => '1',
+      R  => '0',
+      D  => inStartReboot,
+      C  => inBitstreamClk,
+      Q  => StartReboot_str
     );
 
-  flop2_rb : component FD
+  flop2_rb : component FDRE
     port map (
-      D => StartReboot_str,
-      C => inBitstreamClk,
-      Q => StartReboot_str1
+      CE => '1',
+      R  => '0',
+      D  => StartReboot_str,
+      C  => inBitstreamClk,
+      Q  => StartReboot_str1
     );
 
-  flop3_rb : component FD
+  flop3_rb : component FDRE
     port map (
-      D => StartReboot_str1,
-      C => inBitstreamClk,
-      Q => StartReboot_str2
+      CE => '1',
+      R  => '0',
+      D  => StartReboot_str1,
+      C  => inBitstreamClk,
+      Q  => StartReboot_str2
     );
 
-  flop4_rb : component FD
+  flop4_rb : component FDRE
     port map (
-      D => StartReboot_str2,
-      C => inBitstreamClk,
-      Q => StartReboot_str3
+      CE => '1',
+      R  => '0',
+      D  => StartReboot_str2,
+      C  => inBitstreamClk,
+      Q  => StartReboot_str3
     );
 
   StartReboot <= StartReboot_str or StartReboot_str1 or StartReboot_str2 or StartReboot_str3;

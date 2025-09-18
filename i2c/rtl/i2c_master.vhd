@@ -92,34 +92,54 @@ BEGIN
         count := count + 1;                -- continue clock generation timing
       END IF;
 
-      CASE count IS
+      -- Replace the CASE statement with IF-ELSIF
+      IF (count >= 0 AND count < divider) THEN  -- first 1/4 cycle of clocking
+        scl_clk  <= '0';
+        data_clk <= '0';
+      ELSIF (count >= divider AND count < divider*2) THEN  -- second 1/4 cycle of clocking
+        scl_clk  <= '0';
+        data_clk <= '1';
+      ELSIF (count >= divider*2 AND count < divider*3) THEN  -- third 1/4 cycle of clocking
+        scl_clk <= '1';                  -- release scl
+        IF (scl = '0') THEN              -- detect if slave is stretching clock
+          stretch <= '1';
+        ELSE
+          stretch <= '0';
+        END IF;
+        data_clk <= '1';
+      ELSE  -- last 1/4 cycle of clocking
+        scl_clk  <= '1';
+        data_clk <= '0';
+      END IF;
 
-        WHEN 0 TO divider-1 =>             -- first 1/4 cycle of clocking
+      --CASE count IS
 
-          scl_clk  <= '0';
-          data_clk <= '0';
+      --  WHEN 0 TO divider-1 =>             -- first 1/4 cycle of clocking
 
-        WHEN divider TO divider*2-1 =>     -- second 1/4 cycle of clocking
+      --    scl_clk  <= '0';
+      --    data_clk <= '0';
 
-          scl_clk  <= '0';
-          data_clk <= '1';
+      --  WHEN divider TO divider*2-1 =>     -- second 1/4 cycle of clocking
 
-        WHEN divider*2 TO divider*3-1 =>   -- third 1/4 cycle of clocking
+      --    scl_clk  <= '0';
+      --    data_clk <= '1';
 
-          scl_clk <= '1';                  -- release scl
-          IF (scl = '0') THEN              -- detect if slave is stretching clock
-            stretch <= '1';
-          ELSE
-            stretch <= '0';
-          END IF;
-          data_clk <= '1';
+      --  WHEN divider*2 TO divider*3-1 =>   -- third 1/4 cycle of clocking
 
-        WHEN OTHERS =>                     -- last 1/4 cycle of clocking
+      --    scl_clk <= '1';                  -- release scl
+      --    IF (scl = '0') THEN              -- detect if slave is stretching clock
+      --      stretch <= '1';
+      --    ELSE
+      --      stretch <= '0';
+      --    END IF;
+      --    data_clk <= '1';
 
-          scl_clk  <= '1';
-          data_clk <= '0';
+      --  WHEN OTHERS =>                     -- last 1/4 cycle of clocking
 
-      END CASE;
+      --    scl_clk  <= '1';
+      --    data_clk <= '0';
+
+      --END CASE;
 
     END IF;
 
