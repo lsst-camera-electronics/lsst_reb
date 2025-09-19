@@ -1,137 +1,46 @@
-----------------------------------------------------------------------------------
--- Company:
--- Engineer:
---
--- Create Date:    18:21:09 9/19/2016
--- Design Name:
--- Module Name:    max_11046_multiple_top - Behavioral
--- Project Name:
--- Target Devices:
--- Tool versions:
--- Description:
---
--- Dependencies:
---
--- Revision:
--- Revision 0.01 - File Created
--- Additional Comments:
---
-----------------------------------------------------------------------------------
 library IEEE;
 use IEEE.STD_LOGIC_1164.all;
 use IEEE.STD_LOGIC_ARITH.all;
 use IEEE.STD_LOGIC_UNSIGNED.all;
 
 library lsst_reb;
-use lsst_reb.basic_elements.all;
-
--- Uncomment the following library declaration if using
--- arithmetic functions with Signed or Unsigned values
---use IEEE.NUMERIC_STD.ALL;
-
--- Uncomment the following library declaration if instantiating
--- any Xilinx primitives in this code.
---library UNISIM;
---use UNISIM.VComponents.all;
-
+use lsst_reb.basic_elements_pkg.all;
 
 entity max_11046_multiple_top is
   generic (
-    num_adc_on_bus : integer := 3);     -- number of ADC on the same bus
+    num_adc_on_bus : integer := 3     -- number of ADC on the same bus
+  );
   port (
-    clk              : in  std_logic;
-    reset            : in  std_logic;
-    start_write      : in  std_logic;
-    start_read       : in  std_logic;
-    EOC_ck           : in  std_logic;
-    EOC_ccd1         : in  std_logic;
-    EOC_ccd2         : in  std_logic;
-    data_to_adc      : in  std_logic_vector(5 downto 0);
-    data_from_adc    : in  std_logic_vector(15 downto 0);
-    link_busy        : out std_logic;
-    CS_ck            : out std_logic;
-    CS_ccd1          : out std_logic;
-    CS_ccd2          : out std_logic;
-    RD               : out std_logic;
-    WR               : out std_logic;
-    CONVST_ck        : out std_logic;
-    CONVST_ccd1      : out std_logic;
-    CONVST_ccd2      : out std_logic;
-    SHDN_ck          : out std_logic;
-    SHDN_ccd1        : out std_logic;
-    SHDN_ccd2        : out std_logic;
-    write_en         : out std_logic;
-    data_to_adc_out  : out std_logic_vector(3 downto 0);
-    cnv_results_ck   : out array816;
-    cnv_results_ccd1 : out array816;
-    cnv_results_ccd2 : out array816
-    );
-
-end max_11046_multiple_top;
+    clk              : in    std_logic;
+    reset            : in    std_logic;
+    start_write      : in    std_logic;
+    start_read       : in    std_logic;
+    EOC_ck           : in    std_logic;
+    EOC_ccd1         : in    std_logic;
+    EOC_ccd2         : in    std_logic;
+    data_to_adc      : in    std_logic_vector(5 downto 0);
+    data_from_adc    : in    std_logic_vector(15 downto 0);
+    link_busy        : out   std_logic;
+    CS_ck            : out   std_logic;
+    CS_ccd1          : out   std_logic;
+    CS_ccd2          : out   std_logic;
+    RD               : out   std_logic;
+    WR               : out   std_logic;
+    CONVST_ck        : out   std_logic;
+    CONVST_ccd1      : out   std_logic;
+    CONVST_ccd2      : out   std_logic;
+    SHDN_ck          : out   std_logic;
+    SHDN_ccd1        : out   std_logic;
+    SHDN_ccd2        : out   std_logic;
+    write_en         : out   std_logic;
+    data_to_adc_out  : out   std_logic_vector(3 downto 0);
+    cnv_results_ck   : out   array816;
+    cnv_results_ccd1 : out   array816;
+    cnv_results_ccd2 : out   array816
+  );
+end entity max_11046_multiple_top;
 
 architecture behavioural of max_11046_multiple_top is
-
-  component max_11046_multi_ctrl_fsm is
-    generic (
-      num_adc_on_bus : integer := 3);   -- number of ADC on the same bus
-    port (
-      clk            : in  std_logic;
-      reset          : in  std_logic;
-      start_read     : in  std_logic;
-      start_write    : in  std_logic;
-      EOC            : in  std_logic;
-      write_device   : in  std_logic_vector(1 downto 0);
-      link_busy      : out std_logic;
-      CS             : out std_logic;
-      RD             : out std_logic;
-      WR             : out std_logic;
-      CONVST         : out std_logic;
-      SHDN           : out std_logic;
-      write_en       : out std_logic;
-      mux_sel        : out std_logic_vector(1 downto 0);
-      out_reg_en_bus : out std_logic_vector(7 downto 0));
-  end component;
-
-  component generic_reg_ce_init is
-    generic (width : integer := 15);
-    port (
-      reset    : in  std_logic;         -- syncronus reset
-      clk      : in  std_logic;         -- clock
-      ce       : in  std_logic;         -- clock enable
-      init     : in  std_logic;  -- signal to reset the reg (active high)
-      data_in  : in  std_logic_vector(width downto 0);   -- data in
-      data_out : out std_logic_vector(width downto 0));  -- data out
-  end component;
-
-  component demux_1_4_clk_pres
-    port (
-      reset    : in  std_logic;
-      clk      : in  std_logic;
-      data_in  : in  std_logic;
-      selector : in  std_logic_vector(1 downto 0);
-      data_out : out std_logic_vector(3 downto 0));
-  end component;
-
-  component mux_4_1_clk
-    port (
-      reset    : in  std_logic;
-      clk      : in  std_logic;
-      selector : in  std_logic_vector(1 downto 0);
-      in_0     : in  std_logic;
-      in_1     : in  std_logic;
-      in_2     : in  std_logic;
-      in_3     : in  std_logic;
-      output   : out std_logic);
-  end component;
-
-  component ff_ce is
-    port (
-      reset    : in  std_logic;         -- syncronus reset
-      clk      : in  std_logic;         -- clock
-      data_in  : in  std_logic;         -- data in
-      ce       : in  std_logic;         -- clock enable
-      data_out : out std_logic);        -- data out
-  end component;
 
   signal EOC_int    : std_logic;
   signal CS_int     : std_logic;
@@ -140,7 +49,7 @@ architecture behavioural of max_11046_multiple_top is
   signal CONVST_int : std_logic;
   signal SHDN_int   : std_logic;
 
---  signal write_device   : std_logic_vector(1 downto 0);
+  --  signal write_device   : std_logic_vector(1 downto 0);
   signal data_to_adc_out_int : std_logic_vector(5 downto 0);
   signal mux_sel             : std_logic_vector(1 downto 0);
   signal cs_out_bus          : std_logic_vector(3 downto 0);
@@ -152,10 +61,10 @@ architecture behavioural of max_11046_multiple_top is
 
 begin  -- behavioural
 
-
-  max_11046_multi_ctrl_fsm_1 : max_11046_multi_ctrl_fsm
+  max_11046_multi_ctrl_fsm_1 : entity lsst_reb.max_11046_multi_ctrl_fsm
     generic map (
-      num_adc_on_bus => num_adc_on_bus)  -- number of ADC on the same bus
+      num_adc_on_bus => num_adc_on_bus
+    )
     port map (
       clk            => clk,
       reset          => reset,
@@ -171,10 +80,13 @@ begin  -- behavioural
       SHDN           => SHDN_int,
       write_en       => write_en,
       mux_sel        => mux_sel,
-      out_reg_en_bus => out_reg_en_bus);
+      out_reg_en_bus => out_reg_en_bus
+    );
 
-  data_to_adc_reg : generic_reg_ce_init
-    generic map(width => 5)
+  data_to_adc_reg : entity lsst_reb.generic_reg_ce_init
+    generic map (
+      width => 5
+    )
     port map (
       reset    => reset,
       clk      => clk,
@@ -182,12 +94,14 @@ begin  -- behavioural
       init     => '0',
       data_in  => data_to_adc,
       data_out => data_to_adc_out_int
-      );
+    );
 
-  spi_out_reg_ck_generate :
-  for i in 0 to 7 generate
-    out_ck_reg : generic_reg_ce_init
-      generic map(width => 15)
+  spi_out_reg_ck_generate : for i in 0 to 7 generate
+
+    out_ck_reg : entity lsst_reb.generic_reg_ce_init
+      generic map (
+        width => 15
+      )
       port map (
         reset    => reset,
         clk      => clk,
@@ -195,19 +109,20 @@ begin  -- behavioural
         init     => '0',
         data_in  => data_from_adc,
         data_out => cnv_results_ck(i)
-        );
-  end generate;
+      );
 
-  en_bus_ck_generate :
-  for i in 0 to 7 generate
+  end generate spi_out_reg_ck_generate;
+
+  en_bus_ck_generate : for i in 0 to 7 generate
     out_reg_en_bus_ck(i) <= out_reg_en_bus(i) and (not mux_sel(0)) and (not mux_sel(1));
-  end generate;
+  end generate en_bus_ck_generate;
 
+  spi_out_reg_ccd1_generate : for i in 0 to 7 generate
 
-  spi_out_reg_ccd1_generate :
-  for i in 0 to 7 generate
-    out_ccd1_reg : generic_reg_ce_init
-      generic map(width => 15)
+    out_ccd1_reg : entity lsst_reb.generic_reg_ce_init
+      generic map (
+        width => 15
+      )
       port map (
         reset    => reset,
         clk      => clk,
@@ -215,18 +130,20 @@ begin  -- behavioural
         init     => '0',
         data_in  => data_from_adc,
         data_out => cnv_results_ccd1(i)
-        );
-  end generate;
+      );
 
-  en_bus_ccd1_generate :
-  for i in 0 to 7 generate
+  end generate spi_out_reg_ccd1_generate;
+
+  en_bus_ccd1_generate : for i in 0 to 7 generate
     out_reg_en_bus_ccd1(i) <= out_reg_en_bus(i) and (mux_sel(0)) and (not mux_sel(1));
-  end generate;
+  end generate en_bus_ccd1_generate;
 
-  spi_out_reg_ccd2_generate :
-  for i in 0 to 7 generate
-    out_ccd2_reg : generic_reg_ce_init
-      generic map(width => 15)
+  spi_out_reg_ccd2_generate : for i in 0 to 7 generate
+
+    out_ccd2_reg : entity lsst_reb.generic_reg_ce_init
+      generic map (
+        width => 15
+      )
       port map (
         reset    => reset,
         clk      => clk,
@@ -234,47 +151,51 @@ begin  -- behavioural
         init     => '0',
         data_in  => data_from_adc,
         data_out => cnv_results_ccd2(I)
-        );
-  end generate;
+      );
 
-  en_bus_ccd2_generate :
-  for i in 0 to 7 generate
+  end generate spi_out_reg_ccd2_generate;
+
+  en_bus_ccd2_generate : for i in 0 to 7 generate
     out_reg_en_bus_ccd2(i) <= out_reg_en_bus(i) and (not mux_sel(0)) and (mux_sel(1));
-  end generate;
+  end generate en_bus_ccd2_generate;
 
-  ff_ce_WR : ff_ce
+  ff_ce_WR : entity lsst_reb.ff_ce
     port map (
       reset    => reset,
       clk      => clk,
       data_in  => WR_int,
       ce       => '1',
-      data_out => WR);
+      data_out => WR
+    );
 
-  ff_ce_RD : ff_ce
+  ff_ce_RD : entity lsst_reb.ff_ce
     port map (
       reset    => reset,
       clk      => clk,
       data_in  => RD_int,
       ce       => '1',
-      data_out => RD);
+      data_out => RD
+    );
 
-  demux_1_4_clk_CS : demux_1_4_clk_pres
+  demux_1_4_clk_CS : entity lsst_reb.demux_1_4_clk_pres
     port map (
       reset    => reset,
       clk      => clk,
       data_in  => CS_int,
       selector => mux_sel,
-      data_out => cs_out_bus);
+      data_out => cs_out_bus
+    );
 
-  demux_1_4_clk_CONVST : demux_1_4_clk_pres
+  demux_1_4_clk_CONVST : entity lsst_reb.demux_1_4_clk_pres
     port map (
       reset    => reset,
       clk      => clk,
       data_in  => CONVST_int,
       selector => mux_sel,
-      data_out => convst_out_bus);
+      data_out => convst_out_bus
+    );
 
-  mux_4_1_clk_EOC : mux_4_1_clk
+  mux_4_1_clk_EOC : entity lsst_reb.mux_4_1_clk
     port map (
       reset    => reset,
       clk      => clk,
@@ -283,7 +204,8 @@ begin  -- behavioural
       in_1     => EOC_ccd1,
       in_2     => EOC_ccd2,
       in_3     => '0',
-      output   => EOC_int);
+      output   => EOC_int
+    );
 
   CS_ck   <= cs_out_bus(0);
   CS_ccd1 <= cs_out_bus(1);
@@ -300,5 +222,4 @@ begin  -- behavioural
   SHDN_ccd1 <= '0';
   SHDN_ccd2 <= '0';
 
-
-end behavioural;
+end architecture behavioural;

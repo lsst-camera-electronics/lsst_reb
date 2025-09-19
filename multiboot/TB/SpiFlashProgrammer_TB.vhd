@@ -6,97 +6,12 @@ use ieee.numeric_std.all;
 Library UNISIM;
 use UNISIM.vcomponents.all;
 
+library lsst_reb;
+
 entity SpiFlashProgrammer_TB is
 end SpiFlashProgrammer_TB;
 
 architecture behavioral of SpiFlashProgrammer_TB is
-
-  component SpiFlashProgrammer is
-  port
-  (
-    inClk               : in  std_logic;
-    inReset_EnableB     : in  std_logic;
-    inCheckIdOnly       : in  std_logic;
-    inVerifyOnly        : in  std_logic;
-    inData32            : in  std_logic_vector(31 downto 0);
-    inDataWriteEnable   : in  std_logic;
-    outReady_BusyB      : out std_logic;
-    outDone             : out std_logic;
-    outError            : out std_logic;
-    outErrorIdcode      : out std_logic;
-    outErrorErase       : out std_logic;
-    outErrorProgram     : out std_logic;
-    outErrorTimeOut     : out std_logic;
-    outErrorCrc         : out std_logic;
-    outStarted          : out std_logic;
-    outInitializeOK     : out std_logic;
-    outCheckIdOK        : out std_logic;
-    outEraseSwitchWordOK: out std_logic;
-    outEraseOK          : out std_logic;
-    outProgramOK        : out std_logic;
-    outVerifyOK         : out std_logic;
-    outProgramSwitchWordOK: out std_logic;
-
-    -- Signals for SpiSerDes - Connect to instance of SpiSerDes
-    outSSDReset_EnableB : out std_logic;
-    outSSDStartTransfer : out std_logic;
-    inSSDTransferDone   : in  std_logic;
-    outSSDData8Send     : out std_logic_vector(7 downto 0);
-    inSSDData8Receive   : in  std_logic_vector(7 downto 0)
-  );
-  end component SpiFlashProgrammer;
-  
-  component SpiFlashProgrammer_multiboot is
-  port
-  (
-    inClk               : in  std_logic;
-    inReset_EnableB     : in  std_logic;
-    inCheckIdOnly       : in  std_logic;
-    inVerifyOnly        : in  std_logic;
-	 inStartProg 			: in std_logic;
-	 inDaqDone				: in std_logic;
-	 inImageSel				: in  std_logic_vector(1 downto 0);
-    inData32            : in  std_logic_vector(31 downto 0);
-    inDataWriteEnable   : in  std_logic;
-    outReady_BusyB      : out std_logic;
-    outDone             : out std_logic;
-    outError            : out std_logic;
-    outErrorIdcode      : out std_logic;
-    outErrorErase       : out std_logic;
-    outErrorProgram     : out std_logic;
-    outErrorTimeOut     : out std_logic;
-    outErrorAddSel      : out std_logic;
-    outStarted          : out std_logic;
-    outInitializeOK     : out std_logic;
-    outCheckIdOK        : out std_logic;
-    outEraseOK          : out std_logic;
-    outProgramOK        : out std_logic;
-    outVerifyOK         : out std_logic;
-
-    -- Signals for SpiSerDes - Connect to instance of SpiSerDes
-    outSSDReset_EnableB : out std_logic;
-    outSSDStartTransfer : out std_logic;
-    inSSDTransferDone   : in  std_logic;
-    outSSDData8Send     : out std_logic_vector(7 downto 0);
-    inSSDData8Receive   : in  std_logic_vector(7 downto 0)
-  );
-  end component SpiFlashProgrammer_multiboot;
-
-  component SpiSerDes is
-  port
-  (
-    inClk           : in  std_logic;
-    inReset_EnableB : in  std_logic;
-    inStartTransfer : in  std_logic;
-    outTransferDone : out std_logic;
-    inData8Send     : in  std_logic_vector(7 downto 0);
-    outData8Receive : out std_logic_vector(7 downto 0);
-    outSpiCsB       : out std_logic;
-    outSpiClk       : out std_logic;
-    outSpiMosi      : out std_logic;
-    inSpiMiso       : in  std_logic
-  );
-  end component SpiSerDes;
 
   component N25Qxxx is
   port
@@ -110,7 +25,7 @@ architecture behavioral of SpiFlashProgrammer_TB is
     Vpp_W_DQ2 : inout std_logic
   );
   end component N25Qxxx;
-  
+
   COMPONENT data_fifo
   PORT (
     wr_clk : IN STD_LOGIC;
@@ -125,20 +40,20 @@ architecture behavioral of SpiFlashProgrammer_TB is
 END COMPONENT;
 
 -- fifo signals
-	signal wr_clk  : std_logic := '1';
-	signal din		: std_logic_vector(31 downto 0);
-	signal wr_en   : std_logic := '0';
-	signal fifo_full : std_logic;
-	signal fifo_empty : std_logic;
+  signal wr_clk  : std_logic := '1';
+  signal din    : std_logic_vector(31 downto 0);
+  signal wr_en   : std_logic := '0';
+  signal fifo_full : std_logic;
+  signal fifo_empty : std_logic;
 
   signal  inClk               : std_logic := '1';
   signal  inCheckIdOnly       : std_logic;
   signal  inVerifyOnly        : std_logic;
-  signal  inStartProg 			: std_logic := '0';
-  signal  inDaqDone				: std_logic := '0';
+  signal  inStartProg       : std_logic := '0';
+  signal  inDaqDone       : std_logic := '0';
   signal  inReset_EnableB     : std_logic;
   signal  outReady_BusyB      : std_logic;
-  signal  inImageSel				: std_logic_vector(1 downto 0);
+  signal  inImageSel        : std_logic_vector(1 downto 0);
   signal  inData32            : std_logic_vector(31 downto 0);
   signal  inDataWriteEnable   : std_logic;
   signal  outSpiCsB           : std_logic;
@@ -175,7 +90,7 @@ END COMPONENT;
 --  signal I : integer := 0;
 --  signal J : integer := 0;
 
-  constant  tWrClkPeriod     	: time := 6.5 ns;
+  constant  tWrClkPeriod      : time := 6.5 ns;
   constant  tHalfWrClkPeriod  : time := tWrClkPeriod / 2;
   constant  tClkPeriod        : time := 10 ns;
   constant  tHalfClkPeriod    : time := tClkPeriod / 2;
@@ -232,16 +147,16 @@ bitstream_fifo : data_fifo
 
 inDataWriteEnable <= not fifo_empty;
 
-  iSpiFlashProgrammer: SpiFlashProgrammer_multiboot
+  iSpiFlashProgrammer: entity lsst_reb.SpiFlashProgrammer_multiboot
   port map
   (
     inClk               => inClk,
     inReset_EnableB     => inReset_EnableB,
     inCheckIdOnly       => inCheckIdOnly,
     inVerifyOnly        => inVerifyOnly,
-	 inStartProg 			=> inStartProg,
-	 inDaqDone				=> inDaqDone,
-	 inImageSel				=> inImageSel,
+   inStartProg      => inStartProg,
+   inDaqDone        => inDaqDone,
+   inImageSel       => inImageSel,
     inData32            => inData32,
     inDataWriteEnable   => inDataWriteEnable,
     outReady_BusyB      => outReady_BusyB,
@@ -266,7 +181,7 @@ inDataWriteEnable <= not fifo_empty;
   );
 
 
-  iSpiSerDes: SpiSerDes port map
+  iSpiSerDes: entity lsst_reb.SpiSerDes port map
   (
     inClk           => inClk,
     inReset_EnableB => intSSDReset_EnableB,
@@ -298,16 +213,16 @@ inDataWriteEnable <= not fifo_empty;
   stimulus : process
   begin
     inReset_EnableB   <= '1';
-	 wait for 100 ns;
-	 inReset_EnableB   <= '0';
-	 
+   wait for 100 ns;
+   inReset_EnableB   <= '0';
+
     inCheckIdOnly     <= '0';
     inVerifyOnly      <= '0';
     din          <= X"00000000";
 --    inDataWriteEnable <= '0';
-	 
-	 inImageSel			 <= "01";
-	 
+
+   inImageSel      <= "01";
+
 
     --wait for powerup; -- Need this for real N25Qxxx sim model
     --spiVcc                <= X"00000000";
@@ -325,10 +240,10 @@ inDataWriteEnable <= not fifo_empty;
     wait for tClkPeriod;
     wait for tHalfClkPeriod;
     inCheckIdOnly   <= '1';
-	 inStartProg <= '1';
-	 wait for tClkPeriod;
-	 inStartProg <= '0';
-	 
+   inStartProg <= '1';
+   wait for tClkPeriod;
+   inStartProg <= '0';
+
     wait for tHalfClkPeriod;
     wait for tClkPeriod;
 
@@ -344,33 +259,33 @@ inDataWriteEnable <= not fifo_empty;
     wait for tClkPeriod;
     wait for tHalfClkPeriod;
     inVerifyOnly    <= '1';
-   
+
     wait for tHalfClkPeriod;
     wait for tClkPeriod;
-	 
-	  wait for 100 ns;
-	 inStartProg <= '1';
-	 wait for tClkPeriod;
-	 inStartProg <= '0';
+
+    wait for 100 ns;
+   inStartProg <= '1';
+   wait for tClkPeriod;
+   inStartProg <= '0';
 
     wait for tClkPeriod * 500;
     wait for tFpgaClkToData;
-	 inReset_EnableB <= '1';
+   inReset_EnableB <= '1';
     inVerifyOnly    <= '0';
     wait for tDataToNextClk;
 
     wait for tClkPeriod * 10;
-	 inReset_EnableB <= '0';
+   inReset_EnableB <= '0';
 
     -- PROGRAM
     wait for tFpgaClkToData;
-   
+
     wait for tDataToNextClk;
-	 
-	  wait for 100 ns;
-	 inStartProg <= '1';
-	 wait for tClkPeriod;
-	 inStartProg <= '0';
+
+    wait for 100 ns;
+   inStartProg <= '1';
+   wait for tClkPeriod;
+   inStartProg <= '0';
 
 --    wait for tClkPeriod * 420;
 
@@ -388,20 +303,20 @@ inDataWriteEnable <= not fifo_empty;
 --      wait for tClkPeriod * 60;
 --    end loop;
 
-		for J in 0 to 266 loop
-			if fifo_empty /= '1' then
-					wait until fifo_empty = '1';
-			end if;
-			for I in 0 to 63 loop
-				wait until wr_clk'event and wr_clk = '1';
-				wr_en <= '1';
-				din          <= std_logic_vector(to_unsigned(I,32));
-			end loop;
-			wait until wr_clk'event and wr_clk = '1';
-			wr_en <= '0';
+    for J in 0 to 266 loop
+      if fifo_empty /= '1' then
+          wait until fifo_empty = '1';
+      end if;
+      for I in 0 to 63 loop
+        wait until wr_clk'event and wr_clk = '1';
+        wr_en <= '1';
+        din          <= std_logic_vector(to_unsigned(I,32));
+      end loop;
+      wait until wr_clk'event and wr_clk = '1';
+      wr_en <= '0';
     end loop;
-	 
-	 inDaqDone <= '1';
+
+   inDaqDone <= '1';
 
     wait for tFpgaClkToData;
 --    inReset_EnableB       <= '1';
@@ -413,4 +328,3 @@ inDataWriteEnable <= not fifo_empty;
   end process stimulus;
 
 end architecture behavioral;
-

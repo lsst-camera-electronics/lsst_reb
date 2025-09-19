@@ -1,60 +1,33 @@
-----------------------------------------------------------------------------------
--- Company: 
--- Engineer: 
--- 
--- Create Date:    18:31:40 04/10/2013 
--- Design Name: 
--- Module Name:    function_executor_v3 - Behavioral 
--- Project Name: 
--- Target Devices: 
--- Tool versions: 
--- Description: 
---
--- Dependencies: 
---
--- Revision: 
--- Revision 0.01 - File Created
--- Additional Comments: 
---
-----------------------------------------------------------------------------------
 library IEEE;
 use IEEE.STD_LOGIC_1164.all;
 
--- Uncomment the following library declaration if using
--- arithmetic functions with Signed or Unsigned values
---use IEEE.NUMERIC_STD.ALL;
-
--- Uncomment the following library declaration if instantiating
--- any Xilinx primitives in this code.
---library UNISIM;
---use UNISIM.VComponents.all;
-
 entity function_executor_v3 is
-
   port (
-    clk               : in  std_logic;
-    reset             : in  std_logic;
-    fifo_empty        : in  std_logic;
-    func_end          : in  std_logic;
-    func_rep_cnt_end  : in  std_logic;
-    func_inf_loop     : in  std_logic;
-    prog_end_opcode   : in  std_logic_vector(3 downto 0);
-    func_stop         : in  std_logic;
-    func_step         : in  std_logic;
-    func_rep_cnt_init : out std_logic;
-    fifo_read_en      : out std_logic;
-    func_start        : out std_logic;
-    func_rep_cnt_en   : out std_logic;
-    sequencer_busy    : out std_logic;
-    veto_out          : out std_logic;
-    end_sequence      : out std_logic
-    );
-
-end function_executor_v3;
+    clk               : in    std_logic;
+    reset             : in    std_logic;
+    fifo_empty        : in    std_logic;
+    func_end          : in    std_logic;
+    func_rep_cnt_end  : in    std_logic;
+    func_inf_loop     : in    std_logic;
+    prog_end_opcode   : in    std_logic_vector(3 downto 0);
+    func_stop         : in    std_logic;
+    func_step         : in    std_logic;
+    func_rep_cnt_init : out   std_logic;
+    fifo_read_en      : out   std_logic;
+    func_start        : out   std_logic;
+    func_rep_cnt_en   : out   std_logic;
+    sequencer_busy    : out   std_logic;
+    veto_out          : out   std_logic;
+    end_sequence      : out   std_logic
+  );
+end entity function_executor_v3;
 
 architecture Behavioral of function_executor_v3 is
-  type state_type is (wait_start, start_func, func_exe, func_rep, infinite_loop_run, infinite_loop_restart,
-                      wait_step, wait_stop, empting_fifo);
+
+  type state_type is (
+    wait_start, start_func, func_exe, func_rep, infinite_loop_run, infinite_loop_restart,
+    wait_step, wait_stop, empting_fifo
+  );
 
   signal pres_state, next_state : state_type;
   signal next_func_rep_cnt_init : std_logic;
@@ -70,10 +43,11 @@ begin
 
   prog_end_opcode_int <= prog_end_opcode(3) and prog_end_opcode(2) and prog_end_opcode(1) and prog_end_opcode(0);
 
-  process (clk)
+  process (clk) is
   begin
-    if clk'event and clk = '1' then
-      if reset = '1' then
+
+    if rising_edge(clk) then
+      if (reset = '1') then
         pres_state        <= wait_start;
         func_rep_cnt_init <= '1';
         fifo_read_en      <= '0';
@@ -93,14 +67,15 @@ begin
         end_sequence      <= next_end_sequence;
       end if;
     end if;
+
   end process;
-  
+
   process (pres_state, fifo_empty, func_rep_cnt_end, func_inf_loop, func_stop,
-           func_step, func_end, prog_end_opcode_int)
+           func_step, func_end, prog_end_opcode_int) is
   begin
 
     -------------------- outputs defoult values --------------------
-    
+
     next_func_rep_cnt_init <= '0';
     next_fifo_read_en      <= '0';
     next_func_start        <= '0';
@@ -110,117 +85,127 @@ begin
     next_end_sequence      <= '0';
 
     case pres_state is
-      
-       when wait_start =>
-          if fifo_empty = '0' then
-             next_state          <= start_func;
-             next_fifo_read_en   <= '1';
-          else
-             next_state          <= wait_start;
-             next_sequencer_busy <= '0';
-          end if;
-        
-       when start_func =>
-          next_state           <= func_exe;
-          next_func_start      <= '1';
-          next_func_rep_cnt_en <= '1';
-        
-       when func_exe =>
-          if func_end = '1' then
-             if prog_end_opcode_int = '1' then
-                next_state             <= wait_start;
-                next_func_rep_cnt_init <= '1';
-                next_fifo_read_en      <= '1';
-                next_end_sequence      <= '1';
-             elsif func_inf_loop = '1' then
-                next_state      <= infinite_loop_run;
-                next_func_start <= '1';
-             elsif func_rep_cnt_end = '0' then
-                next_state           <= func_rep;
-                next_func_rep_cnt_en <= '1';
-             elsif fifo_empty = '0' then
-                next_state             <= start_func;
-                next_fifo_read_en      <= '1';
-                next_func_rep_cnt_init <= '1';
-             else
-                next_state <= func_exe;
-             end if;
-          else
-             next_state <= func_exe;
-          end if;
 
-       when func_rep =>
-          next_state      <= func_exe;
+      when wait_start =>
+
+        if (fifo_empty = '0') then
+          next_state        <= start_func;
+          next_fifo_read_en <= '1';
+        else
+          next_state          <= wait_start;
+          next_sequencer_busy <= '0';
+        end if;
+
+      when start_func =>
+
+        next_state           <= func_exe;
+        next_func_start      <= '1';
+        next_func_rep_cnt_en <= '1';
+
+      when func_exe =>
+
+        if (func_end = '1') then
+          if (prog_end_opcode_int = '1') then
+            next_state             <= wait_start;
+            next_func_rep_cnt_init <= '1';
+            next_fifo_read_en      <= '1';
+            next_end_sequence      <= '1';
+          elsif (func_inf_loop = '1') then
+            next_state      <= infinite_loop_run;
+            next_func_start <= '1';
+          elsif (func_rep_cnt_end = '0') then
+            next_state           <= func_rep;
+            next_func_rep_cnt_en <= '1';
+          elsif (fifo_empty = '0') then
+            next_state             <= start_func;
+            next_fifo_read_en      <= '1';
+            next_func_rep_cnt_init <= '1';
+          else
+            next_state <= func_exe;
+          end if;
+        else
+          next_state <= func_exe;
+        end if;
+
+      when func_rep =>
+
+        next_state      <= func_exe;
+        next_func_start <= '1';
+
+      when infinite_loop_run =>
+
+        if (func_stop = '0' and func_step = '0' and func_end = '0') then
+          next_state <= infinite_loop_run;
+        elsif (func_stop = '0' and func_step = '0' and func_end = '1') then
+          next_state <= infinite_loop_restart;
+        elsif (func_stop = '0' and func_step = '1' and func_end = '1') then
+          next_state             <= start_func;
+          next_fifo_read_en      <= '1';
+          next_func_rep_cnt_init <= '1';
+        elsif (func_stop = '0' and func_step = '1' and func_end = '0') then
+          next_state <= wait_step;
+        elsif (func_stop = '1' and func_end = '0') then
+          next_state <= wait_stop;
+        else
+          next_state        <= empting_fifo;
+          next_fifo_read_en <= '1';
+          next_veto_out     <= '1';
+        end if;
+
+      when infinite_loop_restart =>
+
+        if (func_stop = '0' and func_step = '0') then
+          next_state      <= infinite_loop_run;
           next_func_start <= '1';
-        
-       when infinite_loop_run =>
-          if    func_stop = '0' and func_step = '0' and func_end = '0' then
-             next_state <= infinite_loop_run;
-          elsif func_stop = '0' and func_step = '0' and func_end = '1' then
-             next_state <= infinite_loop_restart;
-          elsif func_stop = '0' and func_step = '1' and func_end = '1' then
-             next_state             <= start_func;
-             next_fifo_read_en      <= '1';
-             next_func_rep_cnt_init <= '1';
-          elsif func_stop = '0' and func_step = '1' and func_end = '0' then
-             next_state <= wait_step;
-          elsif func_stop = '1' and func_end = '0' then
-             next_state <= wait_stop;
-          else
-             next_state        <= empting_fifo;
-             next_fifo_read_en <= '1';
-             next_veto_out     <= '1';
-          end if;
+        elsif (func_stop = '1' and func_step = '0') then
+          next_state        <= empting_fifo;
+          next_fifo_read_en <= '1';
+          next_veto_out     <= '1';
+        elsif (func_stop = '0' and func_step = '1') then
+          next_state             <= start_func;
+          next_fifo_read_en      <= '1';
+          next_func_rep_cnt_init <= '1';
+        else
+          next_state             <= empting_fifo;
+          next_func_rep_cnt_init <= '1';
+          next_end_sequence      <= '1';
+        end if;
 
-       when infinite_loop_restart =>
-          if    func_stop = '0' and func_step = '0' then
-             next_state <= infinite_loop_run;
-             next_func_start <= '1';
-          elsif func_stop = '1' and func_step = '0' then
-             next_state        <= empting_fifo;
-             next_fifo_read_en <= '1';
-             next_veto_out     <= '1';
-          elsif func_stop = '0' and func_step = '1' then
-             next_state             <= start_func;
-             next_fifo_read_en      <= '1';
-             next_func_rep_cnt_init <= '1';
-          else
-             next_state             <= empting_fifo;
-             next_func_rep_cnt_init <= '1';
-             next_end_sequence      <= '1';
-          end if;
+      when wait_stop =>
 
-       when wait_stop =>
-          if func_end = '0' then
-             next_state <= wait_stop;
-          else
-             next_state        <= empting_fifo;
-             next_fifo_read_en <= '1';
-             next_veto_out     <= '1';
-          end if;
-        
-       when empting_fifo =>
-          if prog_end_opcode_int = '0' then
-             next_state        <= empting_fifo;
-             next_fifo_read_en <= '1';
-             next_veto_out     <= '1';
-          else
-             next_state             <= wait_start;
-             next_func_rep_cnt_init <= '1';
-             next_end_sequence      <= '1';
-          end if;
+        if (func_end = '0') then
+          next_state <= wait_stop;
+        else
+          next_state        <= empting_fifo;
+          next_fifo_read_en <= '1';
+          next_veto_out     <= '1';
+        end if;
 
-       when wait_step =>
-          if func_end = '0' then
-             next_state <= wait_step;
-          else
-             next_state             <= start_func;
-             next_fifo_read_en      <= '1';
-             next_func_rep_cnt_init <= '1';
-          end if;
+      when empting_fifo =>
+
+        if (prog_end_opcode_int = '0') then
+          next_state        <= empting_fifo;
+          next_fifo_read_en <= '1';
+          next_veto_out     <= '1';
+        else
+          next_state             <= wait_start;
+          next_func_rep_cnt_init <= '1';
+          next_end_sequence      <= '1';
+        end if;
+
+      when wait_step =>
+
+        if (func_end = '0') then
+          next_state <= wait_step;
+        else
+          next_state             <= start_func;
+          next_fifo_read_en      <= '1';
+          next_func_rep_cnt_init <= '1';
+        end if;
 
     end case;
+
   end process;
 
-end Behavioral;
+end architecture Behavioral;
 
