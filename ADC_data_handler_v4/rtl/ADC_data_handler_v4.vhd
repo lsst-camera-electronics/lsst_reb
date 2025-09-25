@@ -1,10 +1,14 @@
 library IEEE;
 use IEEE.STD_LOGIC_1164.all;
+use ieee.math_real.all;
 
 library lsst_reb;
 use lsst_reb.basic_elements_pkg.all;
 
 entity ADC_data_handler_v4 is
+  generic (
+    CLK_PERIOD_G : real
+  );
   port (
     reset             : in    std_logic;
     clk               : in    std_logic;
@@ -38,6 +42,34 @@ end entity ADC_data_handler_v4;
 
 architecture Behavioral of ADC_data_handler_v4 is
 
+  --------------------------------------------------------------------------------
+  -- 710ns is max conv time
+  -- for 10ns clock:  750ns=75tics
+  -- for 6.4ns clock: 768ns=120, 736ns=115, 710.4ns=111, 755.2ns=118, 748.8ns=117
+  --------------------------------------------------------------------------------
+  -- For sclk_half period,
+  --   SCK period min: 12ns
+  --   SCK falling edge to data ready max: 11ns
+  --   SCK falling edge to data remains valid min: 3ns
+  --   CNV low to SDO MSB Valid max: 10ns
+  -- Data is sampled at the rising edge of SCK (1/2 period after going low)
+  -- for 10ns clock: sclk_half_period set to 20ns=2
+  -- for 6.4ns clock: 12.8ns=2, 19.2ns=3, 25.6=4
+  ------------------------------------------------------------------------------
+  -- For test_time doesn't really matter, it's the pixel rate for test data
+  -- for 10ns clock: 1500ns=150
+  -- for 6.4ns clock: 1497.6ns=234, 1504ns=235
+  ------------------------------------------------------------------------------
+  constant DEV_CONV_TIME_C     : real :=  750.0E-9;
+  constant DEV_SCLK_HALF_PER_C : real :=   15.0E-9;
+  constant DEV_TEST_TIME_C     : real := 1500.0E-9;
+
+  constant CONV_TIME_C        : natural := calcClockPeriods(DEV_CONV_TIME_C,     CLK_PERIOD_G);
+  constant SCLK_HALF_PERIOD_C : natural := calcClockPeriods(DEV_SCLK_HALF_PER_C, CLK_PERIOD_G);
+  constant TEST_TIME_C        : natural := calcClockPeriods(DEV_TEST_TIME_C,     CLK_PERIOD_G);
+  constant COL_INCR_VAL_C     : natural := 10;
+  constant PIX_INCR_CAL_C     : natural := 8;
+
   signal cnt_en   : std_logic;
   signal init_cnt : std_logic;
 
@@ -64,6 +96,11 @@ architecture Behavioral of ADC_data_handler_v4 is
   signal ccd_sel : std_logic_vector(2 downto 0);
 
 begin
+
+  assert false report "ADC_data_handler_v4 timing constants"                      severity note;
+  assert false report "CONV_TIME_C:         " & integer'image(CONV_TIME_C)        severity note;
+  assert false report "SCLK_HALF_PERIOD_C:  " & integer'image(SCLK_HALF_PERIOD_C) severity note;
+  assert false report "TEST_TIME_C:         " & integer'image(TEST_TIME_C)        severity note;
 
   test_mode_enb_out <= testmode_enb;
 
@@ -137,11 +174,11 @@ begin
 
   readadcs_v5_0_ccd1 : entity lsst_reb.readadcs_v5
     generic map (
-      conv_time        => 75,
-      sclk_half_period => 2,
-      test_time        => 150,
-      col_incr_val     => 10,
-      pix_incr_val     => 8
+      conv_time        => CONV_TIME_C,
+      sclk_half_period => SCLK_HALF_PERIOD_C,
+      test_time        => TEST_TIME_C,
+      col_incr_val     => COL_INCR_VAL_C,
+      pix_incr_val     => PIX_INCR_CAL_C
     )
     port map (
       clk          => clk,
@@ -159,11 +196,11 @@ begin
 
   readadcs_v5_0_ccd2 : entity lsst_reb.readadcs_v5
     generic map (
-      conv_time        => 75,
-      sclk_half_period => 2,
-      test_time        => 150,
-      col_incr_val     => 10,
-      pix_incr_val     => 8
+      conv_time        => CONV_TIME_C,
+      sclk_half_period => SCLK_HALF_PERIOD_C,
+      test_time        => TEST_TIME_C,
+      col_incr_val     => COL_INCR_VAL_C,
+      pix_incr_val     => PIX_INCR_CAL_C
     )
     port map (
       clk          => clk,
@@ -181,11 +218,11 @@ begin
 
   readadcs_v5_0_ccd3 : entity lsst_reb.readadcs_v5
     generic map (
-      conv_time        => 75,
-      sclk_half_period => 2,
-      test_time        => 150,
-      col_incr_val     => 10,
-      pix_incr_val     => 8
+      conv_time        => CONV_TIME_C,
+      sclk_half_period => SCLK_HALF_PERIOD_C,
+      test_time        => TEST_TIME_C,
+      col_incr_val     => COL_INCR_VAL_C,
+      pix_incr_val     => PIX_INCR_CAL_C
     )
     port map (
       clk          => clk,

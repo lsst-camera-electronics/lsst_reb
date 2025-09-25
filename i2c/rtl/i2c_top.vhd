@@ -4,6 +4,10 @@ use IEEE.STD_LOGIC_1164.ALL;
 library lsst_reb;
 
 entity i2c_top is
+  generic (
+    CLK_PERIOD_G     : real;
+    I2C_SCL_PERIOD_G : real
+  );
   port (
     clk           : in    std_logic;
     reset         : in    std_logic;
@@ -52,8 +56,8 @@ begin
 
   i2c_master_0 : entity lsst_reb.i2c_master
     generic map (
-      input_clk => 100_000_000,
-      bus_clk   => 400_000
+      CLK_PERIOD_G     => CLK_PERIOD_G,
+      I2C_SCL_PERIOD_G => I2C_SCL_PERIOD_G
     )
     port map (
       clk       => clk,

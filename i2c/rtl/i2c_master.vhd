@@ -31,12 +31,19 @@
 
 LIBRARY ieee;
 USE ieee.std_logic_1164.all;
-USE ieee.std_logic_unsigned.all;
+use ieee.std_logic_unsigned.all;
+--use ieee.std_logic_arith.all;
+use ieee.math_real.all;
+
+library surf;
+use surf.StdRtlPkg.all;
 
 ENTITY i2c_master IS
   GENERIC (
-    input_clk : INTEGER := 50_000_000; -- input clock speed from user logic in Hz
-    bus_clk   : INTEGER := 400_000     -- speed the i2c bus (scl) will run at in Hz
+    CLK_PERIOD_G     : real;
+    I2C_SCL_PERIOD_G : real
+    --input_clk : INTEGER := 50_000_000; -- input clock speed from user logic in Hz
+    --bus_clk   : INTEGER := 400_000     -- speed the i2c bus (scl) will run at in Hz
   );
   PORT (
     clk       : IN    STD_LOGIC;                    -- system clock
@@ -55,7 +62,10 @@ END entity i2c_master;
 
 ARCHITECTURE logic OF i2c_master IS
 
-  CONSTANT divider : INTEGER := (input_clk/bus_clk)/4; -- number of clocks in 1/4 cycle of scl
+  --CONSTANT divider : INTEGER := (input_clk/bus_clk)/4; -- number of clocks in 1/4 cycle of scl
+
+  constant CLK_RATIO_C : natural := getTimeRatio(I2C_SCL_PERIOD_G, CLK_PERIOD_G);
+  CONSTANT divider     : integer := 4 * CLK_RATIO_C;
 
   TYPE machine IS (ready, start, command, slv_ack1, wr, rd, slv_ack2, mstr_ack, stop); -- needed states
 
@@ -77,7 +87,7 @@ BEGIN
   -- generate the timing for the bus clock (scl_clk) and the data clock (data_clk)
   PROCESS (clk, reset) is
 
-    VARIABLE count : INTEGER RANGE 0 TO divider*4;  -- timing for clock generation
+    VARIABLE count : integer RANGE 0 TO divider*4;  -- timing for clock generation
 
   BEGIN
 
@@ -93,13 +103,13 @@ BEGIN
       END IF;
 
       -- Replace the CASE statement with IF-ELSIF
-      IF (count >= 0 AND count < divider) THEN  -- first 1/4 cycle of clocking
+      IF (count < divider) THEN  -- first 1/4 cycle of clocking
         scl_clk  <= '0';
         data_clk <= '0';
-      ELSIF (count >= divider AND count < divider*2) THEN  -- second 1/4 cycle of clocking
+      ELSIF (count < divider*2) THEN  -- second 1/4 cycle of clocking
         scl_clk  <= '0';
         data_clk <= '1';
-      ELSIF (count >= divider*2 AND count < divider*3) THEN  -- third 1/4 cycle of clocking
+      ELSIF (count < divider*3) THEN  -- third 1/4 cycle of clocking
         scl_clk <= '1';                  -- release scl
         IF (scl = '0') THEN              -- detect if slave is stretching clock
           stretch <= '1';

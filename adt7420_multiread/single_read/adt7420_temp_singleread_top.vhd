@@ -1,9 +1,13 @@
 library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
+use ieee.math_real.all;
 
 library lsst_reb;
 
 entity adt7420_temp_singleread_top is
+  generic (
+    CLK_PERIOD_G : real
+  );
   port (
     clk             : in    std_logic;
     reset           : in    std_logic;
@@ -32,6 +36,10 @@ architecture Behavioral of adt7420_temp_singleread_top is
 begin
 
   i2c_top_0 : entity lsst_reb.i2c_top
+    generic map(
+      CLK_PERIOD_G     => CLK_PERIOD_G,
+      I2C_SCL_PERIOD_G => 2500.0E-9 -- 400kHz
+    )
     port map (
       clk           => clk,
       reset         => reset,

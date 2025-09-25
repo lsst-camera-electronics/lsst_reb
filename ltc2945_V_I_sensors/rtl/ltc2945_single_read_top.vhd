@@ -1,10 +1,14 @@
 library IEEE;
 use IEEE.STD_LOGIC_1164.all;
+use ieee.math_real.all;
 
 library lsst_reb;
 use lsst_reb.basic_elements_pkg.all;
 
 entity ltc2945_single_read_top is
+  generic (
+    CLK_PERIOD_G : real
+  );
   port (
     clk             : in    std_logic;
     reset           : in    std_logic;
@@ -62,7 +66,11 @@ begin
       latch_en_bus => latch_en_bus
     );
 
-  i2c_top_slow_0 : entity lsst_reb.i2c_top_slow
+  i2c_top_slow_0 : entity lsst_reb.i2c_top
+    generic map(
+      CLK_PERIOD_G     => CLK_PERIOD_G,
+      I2C_SCL_PERIOD_G => 250000.0E-9 -- 4kHz
+    )
     port map (
       clk           => clk,
       reset         => reset,

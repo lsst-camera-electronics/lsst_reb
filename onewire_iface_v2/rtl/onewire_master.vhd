@@ -6,17 +6,20 @@ use IEEE.STD_LOGIC_UNSIGNED.all;
 library UNISIM;
 use UNISIM.vcomponents.all;
 
+library surf;
+
 entity onewire_master is
   generic (
-    main_clk_freq : integer                      := 100;  -- clk frequency in MHz
-    word_2_write  : std_logic_vector(7 downto 0) := "00110011"
+    dev_clk_freq : integer                      := 100;  -- clk frequency in MHz
+    word_2_write : std_logic_vector(7 downto 0) := "00110011"
   );
   port (
-    clk         : in    std_logic;
-    reset       : in    std_logic;
+    dev_rst     : in    std_logic;
+    dev_clk     : in    std_logic;
+    sys_rst     : in    std_logic;
+    sys_clk     : in    std_logic;
     start_acq   : in    std_logic;
     dq          : inout std_logic;
-    done        : out   std_logic;
     d_from_chip : out   std_logic_vector(63 downto 0);
     error_bus   : out   std_logic_vector(1 downto 0)
   );
@@ -43,15 +46,19 @@ architecture Behavioral of onewire_master is
   signal next_presence_error    : std_logic;
   signal crc_error              : std_logic;
   signal next_crc_error         : std_logic;
-  signal next_usec_cnt          : integer range 0 to main_clk_freq + 1;
-  signal usec_cnt               : integer range 0 to main_clk_freq + 1;
+  signal next_usec_cnt          : integer range 0 to dev_clk_freq + 1;
+  signal usec_cnt               : integer range 0 to dev_clk_freq + 1;
   signal next_word_cnt          : integer range 0 to 66;
   signal word_cnt               : integer range 0 to 66;
+
+  signal start_sync : std_logic;
+  signal start_rst  : std_logic;
+  signal start      : std_logic;
 
   signal time_cnt_init : std_logic;
   signal time_cnt_en   : std_logic;
 
-  signal oneus_cnt : integer range 0 to main_clk_freq -1;
+  signal oneus_cnt : integer range 0 to dev_clk_freq -1;
   signal time_cnt  : integer range 0 to 600;
 
   signal shift_reg_ser_in_par_out_i : std_logic_vector(63 downto 0);
@@ -69,6 +76,26 @@ architecture Behavioral of onewire_master is
 
 begin
 
+  -- synchronize the start
+  start_sync_0 : entity surf.SynchronizerOneShot
+    port map (
+      rst     => sys_rst,
+      clk     => dev_clk,
+      dataIn  => start_acq,
+      dataOut => start_sync
+    );
+
+  -- synchronize the sys_rst
+  sys_rst_sync_0 : entity surf.SynchronizerEdge
+    port map (
+      clk         => dev_clk,
+      rst         => dev_rst,
+      dataIn      => sys_rst,
+      fallingEdge => start_rst
+    );
+
+  start <= start_sync or start_rst;
+
   io_buffer : component IOBUF
     port map (
       I  => bus_out,
@@ -78,15 +105,15 @@ begin
     );
 
   -- time counter. It is incremented every time the 1us cont expires
-  process (clk) is
+  process (dev_clk) is
   begin  -- process
 
-    if rising_edge(clk) then
-      if (reset = '1' or time_cnt_init = '1') then
+    if rising_edge(dev_clk) then
+      if (dev_rst = '1' or time_cnt_init = '1') then
         oneus_cnt <= 0;
         time_cnt  <= 0;
       elsif (time_cnt_en = '1') then
-        if (oneus_cnt = main_clk_freq - 1) then
+        if (oneus_cnt = dev_clk_freq - 1) then
           oneus_cnt <= 0;
           time_cnt  <= time_cnt + 1;
         else
@@ -99,11 +126,11 @@ begin
   end process;
 
   -- shift ser in par out
-  process (clk) is
+  process (dev_clk) is
   begin
 
-    if rising_edge(clk) then
-      if (reset = '1') then
+    if rising_edge(dev_clk) then
+      if (dev_rst = '1') then
         shift_reg_ser_in_par_out_i <= (others => '0');
       else
         if (shift_en = '1') then
@@ -115,16 +142,14 @@ begin
 
   end process;
 
-  d_from_chip <= shift_reg_ser_in_par_out_i;
-
   -- CRC check
-  process (Clk, reset, bus_in, crc_temp) is
+  process (dev_clk, dev_rst, bus_in, crc_temp) is
   begin
 
     crc_feedback <= bus_in xor crc_temp(7);
 
-    if rising_edge(clk) then
-      if (reset = '1') then
+    if rising_edge(dev_clk) then
+      if (dev_rst = '1') then
         crc_temp <= (others => '0');
       else
         if (shift_en = '1') then
@@ -151,11 +176,11 @@ begin
 
   -- Errors latch
 
-  process (Clk, reset) is
+  process (dev_clk, dev_rst) is
   begin
 
-    if rising_edge(clk) then
-      if (reset = '1' or start_acq = '1') then
+    if rising_edge(dev_clk) then
+      if (dev_rst = '1' or start = '1') then
         error_bus_int <= (others => '0');
       else
         if (done_int = '1') then
@@ -168,16 +193,14 @@ begin
 
   end process;
 
-  error_bus <= error_bus_int;
-  done      <= done_int;
 
   -- FSM
 
-  process (clk) is
+  process (dev_clk) is
   begin
 
-    if rising_edge(clk) then
-      if (reset = '1') then
+    if rising_edge(dev_clk) then
+      if (dev_rst = '1') then
         pres_state     <= idle;
         en_buffer      <= '1';
         bus_out        <= '0';
@@ -204,7 +227,7 @@ begin
 
   end process;
 
-  process (pres_state, start_acq, bus_in, time_cnt, word_cnt, crc_out) is
+  process (pres_state, start, bus_in, time_cnt, word_cnt, crc_out) is
   begin
 
     -------------------- outputs default values  --------------------
@@ -223,7 +246,7 @@ begin
 
       when idle =>
 
-        if (start_acq = '1') then
+        if (start = '1') then
           next_state       <= link_reset;
           next_en_buffer   <= '1';
           next_bus_out     <= '0';
@@ -430,5 +453,33 @@ begin
     end case;
 
   end process;
+
+  -- Synchronize the output
+  sn_sync : entity surf.SynchronizerFifo
+    generic map (
+      DATA_WIDTH_G => 64
+    )
+    port map (
+      rst    => dev_rst,
+      wr_clk => dev_clk,
+      din    => shift_reg_ser_in_par_out_i,
+      rd_clk => sys_clk,
+      dout   => d_from_chip
+    );
+
+  -- Synchronize the output
+  err_sync : entity surf.SynchronizerFifo
+    generic map (
+      DATA_WIDTH_G => 2
+    )
+    port map (
+      rst    => dev_rst,
+      wr_clk => dev_clk,
+      din    => error_bus_int,
+      rd_clk => sys_clk,
+      dout   => error_bus
+    );
+
+
 
 end architecture Behavioral;

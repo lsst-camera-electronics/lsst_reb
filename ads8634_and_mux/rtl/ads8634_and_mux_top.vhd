@@ -1,10 +1,18 @@
 library IEEE;
 use IEEE.STD_LOGIC_1164.all;
+use IEEE.NUMERIC_STD.ALL;
+use ieee.math_real.all;
+
+library surf;
+use surf.StdRtlPkg.all;
 
 library lsst_reb;
 use lsst_reb.basic_elements_pkg.all;
 
 entity ads8634_and_mux_top is
+  generic (
+    CLK_PERIOD_G : real
+  );
   port (
     clk                  : in    std_logic;
     reset                : in    std_logic;
@@ -29,8 +37,10 @@ end entity ads8634_and_mux_top;
 
 architecture Behavioral of ads8634_and_mux_top is
 
+  constant SPI_SCLK_PERIOD_C : real := 50.0E-9;
+
   signal spi_busy        : std_logic;
-  signal ss_int          : std_logic;
+  signal ss_int          : std_logic_vector(0 downto 0);
   signal start_spi       : std_logic;
   signal latch_reg_in    : std_logic;
   signal data_to_adc_int : std_logic_vector(15 downto 0);
@@ -65,21 +75,26 @@ begin
       out_reg_en_bus       => out_reg_en_bus
     );
 
-  SPI_read_write_ads8634_0 : entity lsst_reb.SPI_read_write_ads8634
+  SPI_read_write_ads8634_0 : entity surf.SpiMaster
     generic map (
-      clk_divide  => 2,
-      num_bit_max => 16
+      NUM_CHIPS_G       => 1,
+      DATA_SIZE_G       => 16,
+      CPHA_G            => '0',
+      CPOL_G            => '0',
+      CLK_PERIOD_G      => CLK_PERIOD_G,
+      SPI_SCLK_PERIOD_G => SPI_SCLK_PERIOD_C
     )
     port map (
-      clk          => clk,
-      reset        => reset,
-      start_write  => start_spi,
-      d_to_slave   => data_to_spi,
-      miso         => miso,
-      mosi         => mosi,
-      ss           => ss_int,
-      sclk         => sclk,
-      d_from_slave => data_from_spi
+      clk     => clk,
+      sRst    => reset,
+      chipSel => "0",
+      wrEn    => start_spi,
+      wrData  => data_to_spi,
+      rdData  => data_from_spi,
+      spiCsL  => ss_int,
+      spiSclk => sclk,
+      spiSdi  => mosi,
+      spiSdo  => miso
     );
 
   spi_out_reg_generate : for i in 0 to 6 generate
@@ -125,8 +140,8 @@ begin
       data_out => data_to_adc_int
     );
 
-  ss           <= ss_int;
-  spi_busy     <= not ss_int;
+  ss           <= ss_int(0);
+  spi_busy     <= not ss_int(0);
   latch_reg_in <= start_multiread or start_singleread or start_read_adc_reg;
 
 end architecture Behavioral;

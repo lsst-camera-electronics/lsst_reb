@@ -8,11 +8,11 @@ use lsst_reb.basic_elements_pkg.all;
 
 entity readadcs_v5 is
   generic (
-    conv_time        : integer := 50;
-    sclk_half_period : integer := 1;
-    test_time        : integer := 500;
-    col_incr_val     : integer := 10;
-    pix_incr_val     : integer := 8
+    conv_time        : natural := 50;
+    sclk_half_period : natural := 1;
+    test_time        : natural := 500;
+    col_incr_val     : natural := 10;
+    pix_incr_val     : natural := 8
   );
   port (
     clk        : in    std_logic;
@@ -47,18 +47,18 @@ architecture Behavioral of readadcs_v5 is
   signal shift_en      : std_logic;
   signal next_shift_en : std_logic;
 
-  signal next_conv_cnt      : integer range 0 to conv_time;
-  signal next_sclk_cnt      : integer range 0 to sclk_half_period;
-  signal next_bit_cnt       : integer range 0 to 18;
-  signal next_test_time_cnt : integer range 0 to test_time;
+  signal next_conv_cnt      : natural range 0 to conv_time;
+  signal next_sclk_cnt      : natural range 0 to sclk_half_period;
+  signal next_bit_cnt       : natural range 0 to 18;
+  signal next_test_time_cnt : natural range 0 to test_time;
 
   signal next_test_clom_cnt : std_logic_vector(17 downto 0);
   signal next_test_pix_cnt  : std_logic_vector(17 downto 0);
 
-  signal conv_cnt      : integer range 0 to conv_time;
-  signal sclk_cnt      : integer range 0 to sclk_half_period;
-  signal bit_cnt       : integer range 0 to 18;
-  signal test_time_cnt : integer range 0 to test_time;
+  signal conv_cnt      : natural range 0 to conv_time;
+  signal sclk_cnt      : natural range 0 to sclk_half_period;
+  signal bit_cnt       : natural range 0 to 18;
+  signal test_time_cnt : natural range 0 to test_time;
   signal test_clom_cnt : std_logic_vector(17 downto 0);
   signal test_pix_cnt  : std_logic_vector(17 downto 0);
 

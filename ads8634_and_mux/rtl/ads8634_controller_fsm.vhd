@@ -80,7 +80,7 @@ architecture Behavioral of ads8634_controller_fsm is
   constant mux_multi_6 : std_logic_vector(2 downto 0) := "011"; -- set mux to read ASPIC T_bot_ch3 (Mux ch3)
 
   constant start_spi_time : integer := 2;
-  constant mux_set_time   : integer := 5000;
+  constant mux_set_time   : integer := 5000; -- change for 6.4ns????
   constant pup_time       : integer := 10;
 
 begin

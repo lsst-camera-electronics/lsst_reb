@@ -1,7 +1,10 @@
 library IEEE;
 use IEEE.STD_LOGIC_1164.all;
+use ieee.math_real.all;
 
 package basic_elements_pkg is
+
+  function calcClockPeriods(goalTime, clockPeriod : real) return natural;
 
   subtype word_32 is std_logic_vector(31 downto 0);
 
@@ -48,5 +51,16 @@ package basic_elements_pkg is
 end package basic_elements_pkg;
 
 package body basic_elements_pkg is
+
+-- Function to calculate clock periods needed to meet or exceed a given time period
+function calcClockPeriods(goalTime, clockPeriod : real) return natural is
+begin
+  -- Return ceiling of the ratio to ensure we meet or exceed the target time
+  if goalTime <= 0.0 or clockPeriod <= 0.0 then
+    return 0;  -- Handle invalid inputs
+  else
+    return natural(CEIL(goalTime / clockPeriod));
+  end if;
+end function calcClockPeriods;
 
 end package body basic_elements_pkg;

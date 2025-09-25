@@ -1,6 +1,7 @@
 library IEEE;
 use IEEE.STD_LOGIC_1164.all;
 use IEEE.NUMERIC_STD.all;
+use ieee.math_real.all;
 
 library surf;
 use surf.StdRtlPkg.all;
@@ -13,6 +14,7 @@ use lsst_reb.SequencerPkg.all;
 
 entity AdcDataHandler is
   generic (
+    CLK_PERIOD_G     : real;
     NUM_SEQUENCERS_G : integer range 1 to 3 := 1;
     NUM_SENSORS_G    : integer range 1 to 3
   );
@@ -74,6 +76,9 @@ begin
     end generate;
 
     Image_data_handler_0 : entity lsst_reb.ADC_data_handler_v4
+      generic map (
+        CLK_PERIOD_G => CLK_PERIOD_G
+      )
       port map (
         reset             => rst,
         clk               => clk,
@@ -117,6 +122,9 @@ begin
     assert(NUM_SENSORS_G = 2);
 
     Image_data_handler_ccd_0 : entity lsst_reb.ADC_data_handler_v4
+      generic map (
+        CLK_PERIOD_G => CLK_PERIOD_G
+      )
       port map (
         reset             => rst,
         clk               => clk,
@@ -142,6 +150,9 @@ begin
       );
 
     Image_data_handler_ccd_1 : entity lsst_reb.ADC_data_handler_v4
+      generic map (
+        CLK_PERIOD_G => CLK_PERIOD_G
+      )
       port map (
         reset             => rst,
         clk               => clk,
@@ -174,6 +185,9 @@ begin
     assert(NUM_SENSORS_G = 3);
 
     Image_data_handler_0 : entity lsst_reb.ADC_data_handler_v4
+      generic map (
+        CLK_PERIOD_G => CLK_PERIOD_G
+      )
       port map (
         reset             => rst,
         clk               => clk,
@@ -199,6 +213,9 @@ begin
       );
 
     Image_data_handler_1 : entity lsst_reb.ADC_data_handler_v4
+      generic map (
+        CLK_PERIOD_G => CLK_PERIOD_G
+      )
       port map (
         reset             => rst,
         clk               => clk,
@@ -224,6 +241,9 @@ begin
       );
 
     Image_data_handler_2 : entity lsst_reb.ADC_data_handler_v4
+      generic map (
+        CLK_PERIOD_G => CLK_PERIOD_G
+      )
       port map (
         reset             => rst,
         clk               => clk,
