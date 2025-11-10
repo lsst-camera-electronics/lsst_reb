@@ -1,12 +1,12 @@
 library IEEE;
 use IEEE.STD_LOGIC_1164.all;
 use IEEE.NUMERIC_STD.ALL;
+use ieee.math_real.all;
 
 library surf;
 use surf.StdRtlPkg.all;
 
 library lsst_reb;
---use lsst_reb.basic_elements_pkg.all;
 
 entity dual_ad53xx_DAC_protection_top is
   generic (

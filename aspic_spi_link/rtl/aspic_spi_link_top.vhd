@@ -49,7 +49,7 @@ architecture rtl of aspic_spi_link_top is
   signal spi_cs      : std_logic_vector(NUM_SENSORS_G-1 downto 0);
   signal spi_rdEn    : std_logic_vector(NUM_SENSORS_G-1 downto 0);
   signal spi_rdData  : Slv25Array(NUM_SENSORS_G-1 downto 0);
-  signal wrEn        : std_logic_vector(NUM_SENSORS_G-1 downto 0);
+  signal wrEn        : std_logic_vector(2 downto 0);
   signal wrData      : std_logic_vector(DATA_SIZE_C-1 downto 0);
 
   -- SPI state machine
@@ -66,7 +66,7 @@ architecture rtl of aspic_spi_link_top is
     tb_en    : std_logic_vector(1 downto 0);
     wrData   : std_logic_vector(DATA_SIZE_C-1 downto 0);
     dir      : std_logic;
-    wrEn     : std_logic_vector(NUM_SENSORS_G-1 downto 0);
+    wrEn     : std_logic_vector(2 downto 0);
     dataSize : std_logic_vector(bitSize(DATA_SIZE_C)-1 downto 0);
     rdData   : Slv16Array(NUM_SENSORS_G-1 downto 0);
   end record RegType;
