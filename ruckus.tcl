@@ -13,6 +13,7 @@ if { [info exists ::env(OVERRIDE_SUBMODULE_LOCKS)] != 1 || $::env(OVERRIDE_SUBMO
 
 # Load ruckus files
 loadRuckusTcl "$::DIR_PATH/basic_elements"
+loadRuckusTcl "$::DIR_PATH/backbias_switch"
 loadRuckusTcl "$::DIR_PATH/ad53xx_dac"
 loadRuckusTcl "$::DIR_PATH/ad56xx_dac"
 loadRuckusTcl "$::DIR_PATH/ad7794_temp_sens"
