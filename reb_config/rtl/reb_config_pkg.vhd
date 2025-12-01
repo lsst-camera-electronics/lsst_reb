@@ -21,21 +21,6 @@ package reb_config_pkg is
     reserved_3    : std_logic_vector(31 downto 0);
   end record RebConfigType;
 
-  --constant GREB_CONFIG_DEFAULT_C : RebConfigType := (
-  --  numSequencers => 1,
-  --  sysClkPer     => 10.0E-9, -- 100MHz=10ns, 156.25=6.4ns
-  --  gdAddr        => x"0",
-  --  odAddr        => x"5",
-  --  rdAddr        => x"1",
-  --  gdThresh      => (1138, 1138, 1138),
-  --  odThresh      => (2275, 2275, 2275),
-  --  rdThresh      => (1632, 1632, 1632),
-  --  --         Sensor(   0,    1,    2)
-  --  reserved_1    => (others => '0'),
-  --  reserved_2    => (others => '0'),
-  --  reserved_3    => (others => '0')
-  --);
-
   procedure check_configuration(
     cfg       : in RebConfigType;
     sensors   : in integer range 1 to 3;
