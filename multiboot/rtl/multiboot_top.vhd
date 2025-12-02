@@ -54,16 +54,8 @@ architecture Behaviotal of multiboot_top is
   signal ImageSel             : std_logic_vector(1 downto 0);
 
   signal StartProg      : std_logic;
-  signal StartProg_str  : std_logic;
-  signal StartProg_str1 : std_logic;
-  signal StartProg_str2 : std_logic;
-  signal StartProg_str3 : std_logic;
 
   signal DaqDone      : std_logic;
-  signal DaqDone_str  : std_logic;
-  signal DaqDone_str1 : std_logic;
-  signal DaqDone_str2 : std_logic;
-  signal DaqDone_str3 : std_logic;
 
   -- Status signals
   signal Done            : std_logic;
@@ -93,10 +85,6 @@ architecture Behaviotal of multiboot_top is
 
   -- multiboot fsm signals
   signal StartReboot      : std_logic;
-  signal StartReboot_str  : std_logic;
-  signal StartReboot_str1 : std_logic;
-  signal StartReboot_str2 : std_logic;
-  signal StartReboot_str3 : std_logic;
 
   signal ImageSel_reboot : std_logic_vector(1 downto 0);
   signal icap_out_we     : std_logic;
@@ -114,45 +102,18 @@ begin  -- Behaviotal
   outSpiHoldB <= '1';
 
   -- sync stages from inBitstreamClk to inSpiClk
-
-  -- pulse streatcher to cross clock domanin
-  flop1_mbs : component FDRE
+  start_prog_stretch : entity surf.SynchronizerOneShot
+    generic map (
+      TPD_G          => 1 ns,
+      IN_POLARITY_G  => '1',
+      OUT_POLARITY_G => '1'
+    )
     port map (
-      CE => '1',
-      R  => '0',
-      D  => inStartProg,
-      C  => inBitstreamClk,
-      Q  => StartProg_str
+      clk     => inSpiClk,
+      rst     => inReset_EnableB,
+      dataIn  => inStartProg,
+      dataOut => StartProg
     );
-
-  flop2_mbs : component FDRE
-    port map (
-      CE => '1',
-      R  => '0',
-      D  => StartProg_str,
-      C  => inBitstreamClk,
-      Q  => StartProg_str1
-    );
-
-  flop3_mbs : component FDRE
-    port map (
-      CE => '1',
-      R  => '0',
-      D  => StartProg_str1,
-      C  => inBitstreamClk,
-      Q  => StartProg_str2
-    );
-
-  flop4_mbs : component FDRE
-    port map (
-      CE => '1',
-      R  => '0',
-      D  => StartProg_str2,
-      C  => inBitstreamClk,
-      Q  => StartProg_str3
-    );
-
-  StartProg <= StartProg_str or StartProg_str1 or StartProg_str2 or StartProg_str3;
 
   DaqDone_latch : component FDCE
     port map (
@@ -212,17 +173,17 @@ begin  -- Behaviotal
       data_out => status_reg
     );
 
-  status_sync_1 : entity lsst_reb.generic_reg_ce_init
+  status_sync_1 : entity surf.SynchronizerVector
     generic map (
-      width => 15
+      TPD_G    => 1 ns,
+      STAGES_G => 3,
+      WIDTH_G  => 16  -- Match status_reg width
     )
     port map (
-      reset    => inReset_EnableB,
-      clk      => inBitstreamClk,
-      ce       => '1',
-      init     => '0',
-      data_in  => status_reg,
-      data_out => outStatusReg
+      clk     => inBitstreamClk,
+      rst     => inReset_EnableB,
+      dataIn  => status_reg,      -- From inSpiClk domain
+      dataOut => outStatusReg     -- To inBitstreamClk domain
     );
 
   SpiFlashProgrammer_multiboot_1 : entity lsst_reb.SpiFlashProgrammer_multiboot
@@ -298,44 +259,18 @@ begin  -- Behaviotal
       data_out => ImageSel_reboot
     );
 
-  -- pulse streatcher to cross clock domanin
-  flop1_rb : component FDRE
+  start_reboot_stretch : entity surf.SynchronizerOneShot
+    generic map (
+      TPD_G          => 1 ns,
+      IN_POLARITY_G  => '1',
+      OUT_POLARITY_G => '1'
+    )
     port map (
-      CE => '1',
-      R  => '0',
-      D  => inStartReboot,
-      C  => inBitstreamClk,
-      Q  => StartReboot_str
+      clk     => inSpiClk,
+      rst     => inReset_EnableB,
+      dataIn  => inStartReboot,
+      dataOut => StartReboot
     );
-
-  flop2_rb : component FDRE
-    port map (
-      CE => '1',
-      R  => '0',
-      D  => StartReboot_str,
-      C  => inBitstreamClk,
-      Q  => StartReboot_str1
-    );
-
-  flop3_rb : component FDRE
-    port map (
-      CE => '1',
-      R  => '0',
-      D  => StartReboot_str1,
-      C  => inBitstreamClk,
-      Q  => StartReboot_str2
-    );
-
-  flop4_rb : component FDRE
-    port map (
-      CE => '1',
-      R  => '0',
-      D  => StartReboot_str2,
-      C  => inBitstreamClk,
-      Q  => StartReboot_str3
-    );
-
-  StartReboot <= StartReboot_str or StartReboot_str1 or StartReboot_str2 or StartReboot_str3;
 
   multiboot_fsm_1 : entity lsst_reb.multiboot_fsm_read
     port map (
