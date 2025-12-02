@@ -61,7 +61,7 @@ architecture Behavioral of ADC_data_handler_v4 is
   -- for 6.4ns clock: 1497.6ns=234, 1504ns=235
   ------------------------------------------------------------------------------
   constant DEV_CONV_TIME_C     : real :=  750.0E-9;
-  constant DEV_SCLK_HALF_PER_C : real :=   15.0E-9;
+  constant DEV_SCLK_HALF_PER_C : real :=   11.0E-9;
   constant DEV_TEST_TIME_C     : real := 1500.0E-9;
 
   constant CONV_TIME_C        : natural := calcClockPeriods(DEV_CONV_TIME_C,     CLK_PERIOD_G);
