@@ -3,7 +3,13 @@ use IEEE.STD_LOGIC_1164.all;
 use IEEE.STD_LOGIC_ARITH.all;
 use IEEE.STD_LOGIC_UNSIGNED.all;
 
+library surf;
+use surf.StdRtlPkg.all;
+
 entity ads8634_controller_fsm is
+  generic (
+    CLK_PERIOD_G : real
+  );
   port (
     clk                  : in    std_logic;
     reset                : in    std_logic;
@@ -57,8 +63,8 @@ architecture Behavioral of ads8634_controller_fsm is
   signal next_data_to_spi          : std_logic_vector(15 downto 0);
   signal next_out_reg_en_bus       : std_logic_vector(6 downto 0);
 
-  signal next_pup_cnt : integer range 0 to 5100;
-  signal pup_cnt      : integer range 0 to 5100;
+  signal next_pup_cnt : integer;-- range 0 to 5100;
+  signal pup_cnt      : integer;-- range 0 to 5100;
 
   -- ADC data control strings
   constant reset_cmd      : std_logic_vector(15 downto 0) := x"0201";
@@ -79,11 +85,29 @@ architecture Behavioral of ads8634_controller_fsm is
   constant mux_multi_5 : std_logic_vector(2 downto 0) := "010"; -- set mux to read ASPIC T_top_ch3 (Mux ch2)
   constant mux_multi_6 : std_logic_vector(2 downto 0) := "011"; -- set mux to read ASPIC T_bot_ch3 (Mux ch3)
 
-  constant start_spi_time : integer := 2;
-  constant mux_set_time   : integer := 5000; -- change for 6.4ns????
-  constant pup_time       : integer := 10;
+  ------------------------------------------------------------------------------
+  -- start_spi_time --
+  -- 10ns  clock: 2 = 20ns
+  -- 6.4ns clock: 2 = 12.8ns, 3 = 19.2ns, 4 = 25.6ns
+  -- mux_set_time --
+  -- 10ns  clock: 5000 = 50,000ns
+  -- 6.4ns clock: 7812 = 49996.8ns, 7813 = 50003.2ns
+  -- pup_time --
+  -- 10ns  clock: 10 = 100ns
+  -- 6.4ns clock: 15 = 96ns, 16 = 102.4ns
+  ------------------------------------------------------------------------------
+  constant start_spi_time : integer := ite(CLK_PERIOD_G = 6.4E-9,    2,    2);
+  constant mux_set_time   : integer := ite(CLK_PERIOD_G = 6.4E-9, 7813, 5000);
+  constant pup_time       : integer := ite(CLK_PERIOD_G = 6.4E-9,   15,   10);
+
+  --attribute MARK_DEBUG : string;
+  --attribute MARK_DEBUG of pres_state : signal is "TRUE";
 
 begin
+
+  assert (CLK_PERIOD_G = 10.0E-9 or CLK_PERIOD_G = 6.4E-9)
+    report "Only system clocks of 10ns (100MHz) or 6.4ns (156.25MHz) supported."
+    severity failure;
 
   process (clk) is
   begin

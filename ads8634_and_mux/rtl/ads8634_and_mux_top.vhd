@@ -52,9 +52,34 @@ architecture Behavioral of ads8634_and_mux_top is
   signal adc_add_int : std_logic_vector(3 downto 0);
   signal adc_out_int : std_logic_vector(23 downto 0);
 
+  --attribute MARK_DEBUG : string;
+  --attribute MARK_DEBUG of start_multiread : signal is "TRUE";
+  --attribute MARK_DEBUG of start_singleread : signal is "TRUE";
+  --attribute MARK_DEBUG of start_read_adc_reg : signal is "TRUE";
+  --attribute MARK_DEBUG of mux_address_in : signal is "TRUE";
+  --attribute MARK_DEBUG of data_to_adc : signal is "TRUE";
+  --attribute MARK_DEBUG of miso : signal is "TRUE";
+  --attribute MARK_DEBUG of mosi : signal is "TRUE";
+  --attribute MARK_DEBUG of ss : signal is "TRUE";
+  --attribute MARK_DEBUG of sclk : signal is "TRUE";
+  --attribute MARK_DEBUG of link_busy : signal is "TRUE";
+  --attribute MARK_DEBUG of pwd_line : signal is "TRUE";
+  --attribute MARK_DEBUG of mux_sam_en_out : signal is "TRUE";
+  --attribute MARK_DEBUG of mux_bias_en_out : signal is "TRUE";
+  --attribute MARK_DEBUG of mux_sam_address_out : signal is "TRUE";
+  --attribute MARK_DEBUG of mux_bias_address_out : signal is "TRUE";
+  --attribute MARK_DEBUG of data_out : signal is "TRUE";
+  --attribute MARK_DEBUG of spi_busy : signal is "TRUE";
+  --attribute MARK_DEBUG of start_spi : signal is "TRUE";
+  --attribute MARK_DEBUG of data_from_spi : signal is "TRUE";
+  --attribute MARK_DEBUG of out_reg_en_bus : signal is "TRUE";
+
 begin
 
   ads8634_controller_fsm_0 : entity lsst_reb.ads8634_controller_fsm
+    generic map (
+      CLK_PERIOD_G => CLK_PERIOD_G
+    )
     port map (
       clk                  => clk,
       reset                => reset,
@@ -79,7 +104,7 @@ begin
     generic map (
       NUM_CHIPS_G       => 1,
       DATA_SIZE_G       => 16,
-      CPHA_G            => '0',
+      CPHA_G            => '1',
       CPOL_G            => '0',
       CLK_PERIOD_G      => CLK_PERIOD_G,
       SPI_SCLK_PERIOD_G => SPI_SCLK_PERIOD_C
