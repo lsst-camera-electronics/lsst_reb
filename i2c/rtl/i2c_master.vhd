@@ -42,8 +42,6 @@ ENTITY i2c_master IS
   GENERIC (
     CLK_PERIOD_G     : real;
     I2C_SCL_PERIOD_G : real
-    --input_clk : INTEGER := 50_000_000; -- input clock speed from user logic in Hz
-    --bus_clk   : INTEGER := 400_000     -- speed the i2c bus (scl) will run at in Hz
   );
   PORT (
     clk       : IN    STD_LOGIC;                    -- system clock
@@ -62,10 +60,8 @@ END entity i2c_master;
 
 ARCHITECTURE logic OF i2c_master IS
 
-  --CONSTANT divider : INTEGER := (input_clk/bus_clk)/4; -- number of clocks in 1/4 cycle of scl
-
   constant CLK_RATIO_C : natural := getTimeRatio(I2C_SCL_PERIOD_G, CLK_PERIOD_G);
-  CONSTANT divider     : integer := 4 * CLK_RATIO_C;
+  CONSTANT divider     : integer := CLK_RATIO_C / 4; -- number of clocks in 1/4 cycle of scl
 
   TYPE machine IS (ready, start, command, slv_ack1, wr, rd, slv_ack2, mstr_ack, stop); -- needed states
 
