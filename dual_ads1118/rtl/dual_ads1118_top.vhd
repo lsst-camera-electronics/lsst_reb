@@ -20,7 +20,7 @@ entity dual_ads1118_top is
     ss_adc        : out   std_logic_vector(1 downto 0);
     sclk          : out   std_logic;
     link_busy     : out   std_logic;
-    data_from_adc : out   Slv16Array(7 downto 0)
+    data_from_adc : out   Slv32Array(3 downto 0)
   );
 end entity dual_ads1118_top;
 
@@ -46,7 +46,8 @@ architecture Behavioral of dual_ads1118_top is
     IDLE_S,
     CMD_WAIT_S,
     CMD_SEND_S,
-    WAIT_S
+    WAIT_S,
+    TIMEOUT_S
     );
 
   type RegType is record
@@ -54,10 +55,11 @@ architecture Behavioral of dual_ads1118_top is
     spi_chip_sel : std_logic_vector(0 downto 0);
     spi_wr_en    : std_logic;
     spi_wr_data  : std_logic_vector(31 downto 0);
-    data_out     : Slv16Array(7 downto 0);
+    data_out     : Slv32Array(3 downto 0);
     busy         : std_logic;
     sensor       : natural range 0 to 1;
     channel      : natural range 0 to 4;
+    count        : natural range 0 to 1e9;
   end record RegType;
 
   constant REG_INIT_C : RegType := (
@@ -68,7 +70,8 @@ architecture Behavioral of dual_ads1118_top is
     data_out     => (others => (others => '0')),
     busy         => '0',
     sensor       => 0,
-    channel      => 0
+    channel      => 0,
+    count        => 0
   );
 
   signal r   : RegType := REG_INIT_C;
@@ -78,6 +81,15 @@ architecture Behavioral of dual_ads1118_top is
   signal spi_busy    : std_logic;
   signal data_ready  : std_logic;
   signal spi_rd_data : std_logic_vector(31 downto 0);
+
+  --attribute MARK_DEBUG : string;
+  --attribute MARK_DEBUG of r : signal is "TRUE";
+  --attribute MARK_DEBUG of spi_csL_int : signal is "TRUE";
+  --attribute MARK_DEBUG of spi_busy : signal is "TRUE";
+  --attribute MARK_DEBUG of data_ready : signal is "TRUE";
+  --attribute MARK_DEBUG of spi_rd_data : signal is "TRUE";
+  --attribute MARK_DEBUG of start_read : signal is "TRUE";
+  --attribute MARK_DEBUG of device_select : signal is "TRUE";
 
 begin
 
@@ -101,40 +113,62 @@ begin
           v.spi_chip_sel(0) := device_select;
           v.sensor          := to_integer(unsigned'("0"&device_select));
           v.busy            := '1';
-          v.spi_wr_data     := COMMANDS_C(v.channel);
+          v.spi_wr_data     := COMMANDS_C(r.channel);
           v.spi_wr_en       := '1';
+          v.count           := 0;
           v.state           := CMD_WAIT_S;
+        else
+          v.count           := r.count + 1;
         end if;
 
       when CMD_WAIT_S =>
-        v.spi_wr_en   := '0';
-        v.spi_wr_data := (others => '0');
+
         if (spi_busy = '1') then
-          v.state       := CMD_SEND_S;
+          v.spi_wr_en   := '0';
+          v.count := 0;
+          v.state := CMD_SEND_S;
+        elsif (r.count = 20) then
+          v.count := 0;
+          v.state := TIMEOUT_S;
+        else
+          v.count       := r.count + 1;
         end if;
 
       when CMD_SEND_S =>
+
         if (spi_busy = '0') then
-
           if(r.channel > 0) then
-            v.data_out(r.channel - 1 + (4*r.sensor)) := spi_rd_data(31 downto 16);
+            v.data_out(r.channel - 1) := spi_rd_data;
           end if;
 
-          if(r.channel = 4) then
-            v.state := IDLE_S;
+          v.count := 0;
+          if(r.channel < 4) then
+            v.state       := WAIT_S;
+            v.spi_wr_data := COMMANDS_C(r.channel + 1);
           else
-            v.state := WAIT_S;
+            v.state := IDLE_S;
           end if;
-
+        else
+          v.count := r.count + 1;
         end if;
 
       when WAIT_S =>
+
         if (data_ready = '1') then
           v.channel     := r.channel + 1;
-          v.spi_wr_data := COMMANDS_C(v.channel);
           v.spi_wr_en   := '1';
+          v.count       := 0;
           v.state       := CMD_WAIT_S;
+        elsif (r.count = 1E9) then
+          v.count := 0;
+          v.state := TIMEOUT_S;
+        else
+          v.count := r.count + 1;
         end if;
+
+      when TIMEOUT_S =>
+        v.data_out := (others => (others => '0'));
+        v.state    := IDLE_S;
 
     end case;
 
@@ -147,9 +181,18 @@ begin
   end process comb;
 
   seq : process (clk) is
+    variable v_spi_busy : std_logic;
   begin
     if (rising_edge(clk)) then
-      r <= rin after TPD_G;
+      r          <= rin after TPD_G;
+      data_ready <= not miso after TPD_G;
+
+      if r.spi_chip_sel(0) = '1' then
+        v_spi_busy := not spi_csL_int(1);
+      else
+        v_spi_busy := not spi_csL_int(0);
+      end if;
+      spi_busy <= v_spi_busy;
     end if;
   end process seq;
 
@@ -175,9 +218,7 @@ begin
       spiSdo  => miso
     );
 
-    spi_busy      <= not spi_csL_int(1) when r.spi_chip_sel(0) = '1' else not spi_csL_int(0);
-    data_ready    <= not miso;
-    ss_adc        <= not (r.spi_chip_sel & r.busy);
+    ss_adc <= not (decode(r.spi_chip_sel)(1 downto 0)) when r.busy = '1' else (others => '1');
     data_from_adc <= r.data_out;
     link_busy     <= r.busy;
 
