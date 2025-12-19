@@ -2,12 +2,14 @@ library IEEE;
 use IEEE.STD_LOGIC_1164.all;
 use IEEE.STD_LOGIC_ARITH.all;
 use IEEE.STD_LOGIC_UNSIGNED.all;
+use ieee.math_real.all;
 
 library lsst_reb;
 use lsst_reb.basic_elements_pkg.all;
 
 entity max_11046_multiple_top is
   generic (
+    CLK_PERIOD_G   : real;
     num_adc_on_bus : integer := 3     -- number of ADC on the same bus
   );
   port (
@@ -63,6 +65,7 @@ begin  -- behavioural
 
   max_11046_multi_ctrl_fsm_1 : entity lsst_reb.max_11046_multi_ctrl_fsm
     generic map (
+      CLK_PERIOD_G   => CLK_PERIOD_G,
       num_adc_on_bus => num_adc_on_bus
     )
     port map (

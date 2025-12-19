@@ -2,9 +2,14 @@ library IEEE;
 use IEEE.STD_LOGIC_1164.all;
 use IEEE.STD_LOGIC_ARITH.all;
 use IEEE.STD_LOGIC_UNSIGNED.all;
+use ieee.math_real.all;
+
+library lsst_reb;
+use lsst_reb.basic_elements_pkg.all;
 
 entity max_11046_multi_ctrl_fsm is
   generic (
+    CLK_PERIOD_G   : real;
     num_adc_on_bus : integer := 3     -- number of ADC on the same bus
   );
   port (
@@ -37,6 +42,17 @@ architecture Behavioural of max_11046_multi_ctrl_fsm is
     wait_ch7, read_ch7, wait_ch8, adc_sel_1, adc_sel_2,
     wait_chip_up_write, write_data
   );
+  -- These times look longer than what's in the data sheet
+  -- but it's what the W/GREBs have been using all along
+  --constant SHDN_RECOVERY_TIME_C : real := 100.0E-9;
+  constant INTEGRATION_TIME_C   : real := 25000.0E-9;
+  constant WAIT_DATA_TIME_C     : real := 100.0E-9;
+  constant READ_DATA_TIME_C     : real := 100.0E-9;
+
+  --constant shdn_recovery_time : natural := calcClockPeriods(SHDN_RECOVERY_TIME_C, CLK_PERIOD_G);
+  constant integration_time   : natural := calcClockPeriods(INTEGRATION_TIME_C,   CLK_PERIOD_G);
+  constant wait_data_time     : natural := calcClockPeriods(WAIT_DATA_TIME_C,     CLK_PERIOD_G);
+  constant read_data_time     : natural := calcClockPeriods(READ_DATA_TIME_C,     CLK_PERIOD_G);
 
   signal pres_state, next_state : state_type;
   signal next_link_busy         : std_logic;
@@ -49,24 +65,22 @@ architecture Behavioural of max_11046_multi_ctrl_fsm is
   signal next_mux_sel           : std_logic_vector(1 downto 0);
   signal next_out_reg_en_bus    : std_logic_vector(7 downto 0);
 
-  signal next_cnt : integer range 0 to 50;
-  signal cnt      : integer range 0 to 50;
+  signal next_cnt : integer;
+  signal cnt      : integer;
 
-  signal next_cnt_1 : integer range 0 to 2501;
-  signal cnt_1      : integer range 0 to 2501;
-
-  --  signal next_cnt_2 : integer range 0 to 3;
-  --  signal cnt_2      : integer range 0 to 3;
+  signal next_cnt_1 : integer;
+  signal cnt_1      : integer;
 
   signal next_cnt_2 : std_logic_vector(1 downto 0);
   signal cnt_2      : std_logic_vector(1 downto 0);
 
-  constant shdn_recovery_time : integer := 10;
-  constant integration_time   : integer := 2500;
-  constant wait_data_time     : integer := 10;
-  constant read_data_time     : integer := 10;
-
 begin  -- Behavioural
+
+  assert false report "max_11046_multi_ctrl_fsm timing constants"                severity note;
+  --assert false report "shdn_recovery_time: " & integer'image(shdn_recovery_time) severity note;
+  assert false report "integration_time:   " & integer'image(integration_time)   severity note;
+  assert false report "wait_data_time:     " & integer'image(wait_data_time)     severity note;
+  assert false report "read_data_time:     " & integer'image(read_data_time)     severity note;
 
   process (clk) is
   begin
