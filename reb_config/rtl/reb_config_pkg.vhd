@@ -35,7 +35,7 @@ package body reb_config_pkg is
 
   procedure check_configuration(
     cfg       : in RebConfigType;
-    sensors   : in integer;
+    sensors   : in integer range 1 to 3;
     multiboot : in boolean;
     fwVersion : in std_logic_vector(31 downto 0);
     sci_ver   : in std_logic_vector(7 downto 0)
