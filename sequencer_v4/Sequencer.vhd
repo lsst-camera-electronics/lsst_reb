@@ -10,9 +10,8 @@ use lsst_reb.SequencerPkg.all;
 
 entity Sequencer is
   generic (
-    NUM_SENSORS_G      : integer range 1 to 3;
-    NUM_SEQUENCERS_G   : integer range 1 to 3;
-    MAIN_ENABLE_INIT_G : std_logic_vector := "0" -- Resets to enabled (1) or disabled (0)
+    NUM_SENSORS_G    : integer range 1 to 3;
+    NUM_SEQUENCERS_G : integer range 1 to 3
   );
   port (
     clk : in std_logic;
@@ -30,10 +29,7 @@ entity Sequencer is
     reg_cmd_step           : in  std_logic_vector(NUM_SEQUENCERS_G-1 downto 0);
     -- Sequencer Main Selection
     sync_cmd_main_addr      : in  std_logic_vector(4 downto 0);
-    start_addr_rd : out Slv10Array(NUM_SEQUENCERS_G-1 downto 0);
-    -- Sequencer Main Enable Register
-    main_enable_wr         : in  std_logic_vector(NUM_SEQUENCERS_G-1 downto 0);
-    main_enable_rd         : out Slv32Array(NUM_SEQUENCERS_G-1 downto 0);
+    sequencer_start_addr_rd : out Slv10Array(NUM_SEQUENCERS_G-1 downto 0);
     -- Various memory write and readback
     prog_mem_we            : in  std_logic_vector(NUM_SEQUENCERS_G-1 downto 0);
     prog_mem_rd            : out Slv32Array(NUM_SEQUENCERS_G-1 downto 0);
@@ -69,12 +65,10 @@ end entity Sequencer;
 
 architecture Behavioral of Sequencer is
 
-  signal sequencer_start_addr : Slv10Array(NUM_SEQUENCERS_G-1 downto 0);
-  signal sequencer_start      : std_logic_vector(NUM_SEQUENCERS_G-1 downto 0);
-  signal sequencer_stop       : std_logic_vector(NUM_SEQUENCERS_G-1 downto 0);
-  signal sequencer_step       : std_logic_vector(NUM_SEQUENCERS_G-1 downto 0);
-
-  signal sequencer_enable    : Slv32Array(NUM_SEQUENCERS_G-1 downto 0);
+  signal sequencer_start_addr        : Slv10Array(NUM_SEQUENCERS_G-1 downto 0);
+  signal sequencer_start             : std_logic_vector(NUM_SEQUENCERS_G-1 downto 0);
+  signal sequencer_stop              : std_logic_vector(NUM_SEQUENCERS_G-1 downto 0);
+  signal sequencer_step              : std_logic_vector(NUM_SEQUENCERS_G-1 downto 0);
 
   signal sequencer_unaligned : Slv32Array(NUM_SEQUENCERS_G-1 downto 0);
   signal sequencer_aligned   : Slv32Array(NUM_SEQUENCERS_G-1 downto 0);
@@ -88,23 +82,8 @@ begin
     report "The number of sequencers must be 1 or equal to the number of sensors."
     severity failure;
 
+
   sequencers_generate : for i in 0 to NUM_SEQUENCERS_G-1 generate
-
-    -- Sequencer Main Enable Register
-    sequencer_enable_reg : entity surf.RegisterVector
-    generic map (
-      WIDTH_G => 32,
-      INIT_G  => MAIN_ENABLE_INIT_G
-    )
-    port map (
-      clk   => clk,
-      rst   => rst,
-      en    => main_enable_wr(i),
-      sig_i => regDataWr,
-      reg_o => sequencer_enable(i)
-    );
-
-    main_enable_rd(i) <= sequencer_enable(i);
 
     -- Sequencer Commmand Generation
     process (clk) is
@@ -118,11 +97,11 @@ begin
         -- Handle first trigger source
         if (sync_cmd_start = '1') then
           sequencer_start_addr(i) <= "000" & sync_cmd_main_addr & "00";
-          sequencer_start(i)      <= genmux(sync_cmd_main_addr, sequencer_enable(i));
+          sequencer_start(i)      <= '1';
         -- Handle second trigger source
         elsif (reg_cmd_start(i) = '1') then
           sequencer_start_addr(i) <= "000" & regDataWr(4 downto 0) & "00";
-          sequencer_start(i)      <= genmux(regDataWr(4 downto 0), sequencer_enable(i));
+          sequencer_start(i)      <= '1';
         end if;
       end if;
 
@@ -139,7 +118,7 @@ begin
         stop_sequence            => sequencer_stop(i),
         step_sequence            => sequencer_step(i),
         program_mem_init_add_in  => sequencer_start_addr(i),
-        program_mem_init_add_rbk => start_addr_rd(i),
+        program_mem_init_add_rbk => sequencer_start_addr_rd(i),
         program_mem_we           => prog_mem_we(i),
         prog_mem_redbk           => prog_mem_rd(i),
         ind_func_mem_we          => ind_func_mem_we(i),
