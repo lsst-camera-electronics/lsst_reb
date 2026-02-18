@@ -66,8 +66,8 @@ begin
 
     jitter_cleaner : entity lsst_reb.si5342_jitter_cleaner_top
       port map (
-        clk          => sys_clk,
-        reset        => sys_rst,
+        clk          => sys_clk_local,
+        reset        => sys_rst_local,
         start_config => start_config,
         jc_config    => config,
         config_busy  => jc_config_busy,
@@ -123,16 +123,35 @@ begin
 
     assert false report "No Jitter Cleaner config for non-10ns clocks, using passthrough" severity warning;
 
-    sys_clk_out <= sys_clk_local;
-    sys_rst_out <= sys_rst_local;
-
-    status_bus <= (others => '0');
-
-    jc_mosi       <= '0';
-    jc_sclk       <= '0';
-    jc_cs         <= '0';
-    jc_rst_out    <= '1'; -- NO reset
+    sys_clk_out   <= sys_clk_local;
+    sys_rst_out   <= sys_rst_local;
     jc_refclk_out <= '0';
+
+    ----------------------------------------------------------------------------
+    -- NOTE: Even though we will not use the clocks produced by the
+    -- Jitter Cleaner, we need to include the configuration of it to
+    -- put it into a low power state
+    ----------------------------------------------------------------------------
+    jitter_cleaner : entity lsst_reb.si5342_jitter_cleaner_top
+      port map (
+        clk          => sys_clk_local,
+        reset        => sys_rst_local,
+        start_config => start_config,
+        jc_config    => config,
+        config_busy  => jc_config_busy,
+        jc_clk_ready => jc_config_done,
+        jc_clk_in_en => jc_clk_in_en,
+        miso         => jc_miso,
+        mosi         => jc_mosi,
+        chip_select  => jc_cs,
+        sclk         => jc_sclk);
+
+    jc_rst_out <= '1'; -- NO reset
+
+    jc_clk_rdy     <= jc_config_done and jc_lol and jc_los0;
+    jc_clk_not_rdy <= not jc_clk_rdy;
+
+    status_bus <= '0' & '0' & jc_clk_rdy & jc_config_done & jc_lol & jc_los0;
 
   end generate U_no_jitter_cleaner;
 
