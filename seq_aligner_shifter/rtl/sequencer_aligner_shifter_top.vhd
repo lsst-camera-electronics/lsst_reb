@@ -178,7 +178,14 @@ begin
   sequencer_shift_out <= mux_sl(0) WHEN shift_counter(7) = '0' ELSE
                          mux_sl(1);
 
-  srl_q_ch(0) <= sequencer_in(start_adc_bit);
+  srl_input_ff : entity lsst_reb.ff_ce
+    port map (
+      reset    => reset,
+      clk      => clk,
+      data_in  => sequencer_in(start_adc_bit),
+      ce       => '1',
+      data_out => srl_q_ch(0)
+    );
 
   shift_reg_out_ff : entity lsst_reb.ff_ce
     port map (
