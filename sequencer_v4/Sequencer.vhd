@@ -34,7 +34,11 @@ entity Sequencer is
     -- Sequencer Outputs
     sequencer_busy : out std_logic_vector(NUM_SEQUENCERS_G-1 downto 0);
     end_sequence   : out std_logic_vector(NUM_SEQUENCERS_G-1 downto 0);
-    sequencer_out  : out SequencerOutputArray(NUM_SENSORS_G-1 downto 0)
+    sequencer_out  : out SequencerOutputArray(NUM_SENSORS_G-1 downto 0);
+
+    -- Status (optional observability; active regardless of register reads)
+    op_code_error     : out std_logic_vector(NUM_SEQUENCERS_G-1 downto 0);
+    op_code_error_add : out Slv10Array(NUM_SEQUENCERS_G-1 downto 0)
   );
 end entity Sequencer;
 
@@ -242,6 +246,10 @@ begin
       end if;
     end if;
   end process reg_interface_proc;
+
+  -- Status port assignments
+  op_code_error     <= op_code_error_i;
+  op_code_error_add <= op_code_error_add_i;
 
   ---------------------------------------------------------------------------
   -- Sequencer Instance Generation
