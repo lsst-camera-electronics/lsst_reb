@@ -42,6 +42,8 @@ architecture Behavioral of function_v3 is
   signal out_add_timeslice        : std_logic_vector(3 downto 0);
   signal time_bus_int             : std_logic_vector(15 downto 0);
   signal time_bus_2_int           : std_logic_vector(15 downto 0);
+  signal time_bus_int_r           : std_logic_vector(15 downto 0);
+  signal time_bus_2_int_r         : std_logic_vector(15 downto 0);
   signal time_add_w_mux           : std_logic_vector(7 downto 0);
   signal time_add_plus1           : std_logic_vector(7 downto 0);
   signal time_add_read            : std_logic_vector(7 downto 0);
@@ -55,7 +57,7 @@ begin
       clk                 => clk,
       start_function      => start_func,
       func_time_in        => time_bus_int,
-      func_time_in_plus1  => time_bus_2_int,
+      func_time_in_plus1  => time_bus_2_int_r,
       func_time_add       => time_add_timeslice,
       func_time_add_plus1 => time_add_timeslice_plus1,
       func_out_add        => out_add_timeslice,
@@ -115,6 +117,17 @@ begin
       douta => out_mem_out_2,
       doutb => signal_out_func
     );
+
+  -- Pipeline registers on time_mem read outputs to break critical path.
+  -- Addresses are registered FSM outputs; data is valid 1 cycle after address
+  -- change, which is when the FSM's combinational process evaluates it.
+  process (clk) is
+  begin
+    if rising_edge(clk) then
+      time_bus_int_r   <= time_bus_int;
+      time_bus_2_int_r <= time_bus_2_int;
+    end if;
+  end process;
 
   time_mem_out_2 <= time_bus_2_int;
   time_add_plus1 <= time_func_add & time_add_timeslice_plus1;
