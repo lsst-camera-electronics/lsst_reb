@@ -129,7 +129,7 @@ begin
     end if;
   end process;
 
-  time_mem_out_2 <= time_bus_2_int;
+  time_mem_out_2 <= time_bus_2_int_r;
   time_add_plus1 <= time_func_add & time_add_timeslice_plus1;
   time_add_read  <= time_func_add & time_add_timeslice;
   out_add_read   <= out_func_add & out_add_timeslice;
