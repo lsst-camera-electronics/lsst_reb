@@ -47,6 +47,7 @@ architecture Behavioral of sequencer_parameter_extractor_top_v4 is
 
   signal fifo_param_full          : std_logic;
   signal prog_mem_data_out        : std_logic_vector(31 downto 0);
+  signal prog_mem_data_r          : std_logic_vector(31 downto 0);
   signal data_from_stack          : std_logic_vector(31 downto 0);
   signal fifo_param_we            : std_logic;
   signal fifo_param_we_reg        : std_logic;
@@ -77,6 +78,17 @@ architecture Behavioral of sequencer_parameter_extractor_top_v4 is
 
 begin
 
+  -- Pipeline register on program memory output to break the critical path:
+  -- program_mem_rd_add → prog_mem_data_out (LutRAM) → indirect memories → FSM
+  -- After this register, indirect memories are addressed from prog_mem_data_r
+  -- and their combinational reads arrive in the same cycle the FSM evaluates.
+  process (clk) is
+  begin
+    if rising_edge(clk) then
+      prog_mem_data_r <= prog_mem_data_out;
+    end if;
+  end process;
+
   parameter_extractor_fsm_v3_0 : entity lsst_reb.parameter_extractor_fsm_v3
     port map (
       clk                      => clk,
@@ -84,7 +96,7 @@ begin
       start_sequence           => start_sequence,
       fifo_param_full          => fifo_param_full,
       op_code_error_reset      => op_code_error_reset,
-      program_mem_data         => prog_mem_data_out,
+      program_mem_data         => prog_mem_data_r,
       data_from_stack          => data_from_stack,
       ind_rep_mem_data_out     => ind_rep_mem_data_out,
       ind_sub_add_mem_data_out => ind_sub_add_mem_data_out,
@@ -147,7 +159,7 @@ begin
     port map (
       addra => seq_mem_w_add(3 downto 0),
       dina  => seq_mem_data_in(3 downto 0),
-      addrb => prog_mem_data_out(27 downto 24),
+      addrb => prog_mem_data_r(27 downto 24),
       clka  => clk,
       clkb  => clk,
       wea   => ind_func_mem_we,
@@ -168,7 +180,7 @@ begin
     port map (
       addra => seq_mem_w_add(3 downto 0),
       dina  => seq_mem_data_in(23 downto 0),
-      addrb => prog_mem_data_out(3 downto 0),
+      addrb => prog_mem_data_r(3 downto 0),
       clka  => clk,
       clkb  => clk,
       wea   => ind_rep_mem_we,
@@ -184,7 +196,7 @@ begin
       reset    => reset,
       clk      => clk,
       selector => fifo_in_mux_sel,
-      bus_in_0 => prog_mem_data_out,
+      bus_in_0 => prog_mem_data_r,
       bus_in_1 => prog_mem_func_ind,
       bus_in_2 => prog_mem_rep_ind,
       bus_in_3 => prog_mem_all_ind,
@@ -206,7 +218,7 @@ begin
     port map (
       addra => seq_mem_w_add(3 downto 0),
       dina  => seq_mem_data_in(9 downto 0),
-      addrb => prog_mem_data_out(19 downto 16),
+      addrb => prog_mem_data_r(19 downto 16),
       clka  => clk,
       clkb  => clk,
       wea   => ind_sub_add_mem_we,
@@ -227,7 +239,7 @@ begin
     port map (
       addra => seq_mem_w_add(3 downto 0),
       dina  => seq_mem_data_in(15 downto 0),
-      addrb => prog_mem_data_out(3 downto 0),
+      addrb => prog_mem_data_r(3 downto 0),
       clka  => clk,
       clkb  => clk,
       wea   => ind_sub_rep_mem_we,
@@ -256,9 +268,9 @@ begin
 
   stack_data_in <= '0' & ind_sub_rep_flag & program_mem_rd_add & x"0" & sub_rep_cnt;
 
-  prog_mem_rep_ind  <= prog_mem_data_out(31 downto 24) & ind_rep_mem_data_out;
-  prog_mem_func_ind <= prog_mem_data_out(31 downto 28) & ind_func_mem_data_out & prog_mem_data_out(23 downto 0);
-  prog_mem_all_ind  <= prog_mem_data_out(31 downto 28) & ind_func_mem_data_out & ind_rep_mem_data_out;
+  prog_mem_rep_ind  <= prog_mem_data_r(31 downto 24) & ind_rep_mem_data_out;
+  prog_mem_func_ind <= prog_mem_data_r(31 downto 28) & ind_func_mem_data_out & prog_mem_data_r(23 downto 0);
+  prog_mem_all_ind  <= prog_mem_data_r(31 downto 28) & ind_func_mem_data_out & ind_rep_mem_data_out;
 
   op_code_error_add <= program_mem_rd_add;
 

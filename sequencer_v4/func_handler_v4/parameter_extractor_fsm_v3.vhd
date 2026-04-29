@@ -33,11 +33,11 @@ end entity parameter_extractor_fsm_v3;
 architecture Behavioral of parameter_extractor_fsm_v3 is
 
   type state_type is (
-    wait_start, op_code_eval, sub_jump, simple_func_op, ind_func_call,
+    wait_start, fetch, op_code_eval, sub_jump, simple_func_op, ind_func_call,
     ind_rep_call, all_ind_call, ind_sub_add_jump,
     ind_sub_all_jump,
-    write_fifo, wait_fifo,
-    trailer_op, rep_sub, op_code_error_state
+    write_fifo,
+    trailer_op, fetch_rep_sub, rep_sub, op_code_error_state
   );
 
   signal pres_state, next_state : state_type;
@@ -114,8 +114,12 @@ begin
           next_sub_rep_cnt   <= (others => '0');
         else
           next_program_mem_add <= program_mem_init_add;
-          next_state           <= op_code_eval;
+          next_state           <= fetch;
         end if;
+
+      when fetch =>
+
+        next_state <= op_code_eval;
 
       when op_code_eval =>
 
@@ -124,14 +128,14 @@ begin
         else
           if (op_code = func_call_opcode) then
             if (func_call_rep = x"000000") then
-              next_state           <= op_code_eval;
+              next_state           <= fetch;
               next_program_mem_add <= program_mem_add_int + 1;
             else
               next_state <= simple_func_op;
             end if;
           elsif (op_code = ind_func_call_opcode) then
             if (func_call_rep = x"000000") then
-              next_state           <= op_code_eval;
+              next_state           <= fetch;
               next_program_mem_add <= program_mem_add_int + 1;
             else
               next_state        <= ind_func_call;
@@ -139,7 +143,7 @@ begin
             end if;
           elsif (op_code = ind_rep_call_opcode) then
             if (ind_rep_mem_data_out = x"000000") then
-              next_state           <= op_code_eval;
+              next_state           <= fetch;
               next_program_mem_add <= program_mem_add_int + 1;
             else
               next_state        <= ind_rep_call;
@@ -147,7 +151,7 @@ begin
             end if;
           elsif (op_code = ind_all_call_opcode) then
             if (ind_rep_mem_data_out = x"000000") then
-              next_state           <= op_code_eval;
+              next_state           <= fetch;
               next_program_mem_add <= program_mem_add_int + 1;
             else
               next_state        <= all_ind_call;
@@ -155,7 +159,7 @@ begin
             end if;
           elsif (op_code = jump_to_add_opcode) then
             if (jump_to_add_rep = x"0000") then
-              next_state           <= op_code_eval;
+              next_state           <= fetch;
               next_program_mem_add <= program_mem_add_int + 1;
             else
               next_state          <= sub_jump;
@@ -167,7 +171,7 @@ begin
             next_sub_stack_add <= sub_stack_add_int - 1;
           elsif (op_code = ind_add_jump_opcode) then
             if (jump_to_add_rep = x"0000") then
-              next_state           <= op_code_eval;
+              next_state           <= fetch;
               next_program_mem_add <= program_mem_add_int + 1;
             else
               next_state          <= ind_sub_add_jump;
@@ -176,7 +180,7 @@ begin
             end if;
           elsif (op_code = ind_rep_jump_opcode) then
             if (ind_sub_rep_mem_data_out = x"0000") then
-              next_state           <= op_code_eval;
+              next_state           <= fetch;
               next_program_mem_add <= program_mem_add_int + 1;
             else
               next_state            <= sub_jump;
@@ -186,7 +190,7 @@ begin
             end if;
           elsif (op_code = ind_all_jump_opcode) then
             if (ind_sub_rep_mem_data_out = x"0000") then
-              next_state           <= op_code_eval;
+              next_state           <= fetch;
               next_program_mem_add <= program_mem_add_int + 1;
             else
               next_state            <= ind_sub_all_jump;
@@ -210,38 +214,38 @@ begin
 
       when write_fifo =>
 
-        next_state           <= wait_fifo;
+        next_state           <= fetch;
         next_program_mem_add <= program_mem_add_int + 1;
-
-      when wait_fifo =>
-
-        next_state <= op_code_eval;
 
       when sub_jump =>
 
-        next_state           <= op_code_eval;
+        next_state           <= fetch;
         next_program_mem_add <= program_mem_data(25 downto 16);
         next_sub_stack_add   <= sub_stack_add_int + 1;
         next_sub_rep_cnt     <= (others => '0');
 
       when ind_sub_add_jump =>
 
-        next_state           <= op_code_eval;
+        next_state           <= fetch;
         next_program_mem_add <= ind_sub_add_mem_data_out;
         next_sub_stack_add   <= sub_stack_add_int + 1;
         next_sub_rep_cnt     <= (others => '0');
 
       when ind_sub_all_jump =>
 
-        next_state           <= op_code_eval;
+        next_state           <= fetch;
         next_program_mem_add <= ind_sub_add_mem_data_out;
         next_sub_stack_add   <= sub_stack_add_int + 1;
         next_sub_rep_cnt     <= (others => '0');
 
       when trailer_op =>
 
-        next_state           <= rep_sub;
+        next_state           <= fetch_rep_sub;
         next_program_mem_add <= data_from_stack(29 downto 20);
+
+      when fetch_rep_sub =>
+
+        next_state <= rep_sub;
 
       when ind_func_call =>
 
