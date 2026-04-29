@@ -266,16 +266,18 @@ begin
 
         if (data_from_stack(30) = '0') then
           if (program_mem_data(15 downto 0) = data_from_stack(15 downto 0)) then
-            next_state       <= write_fifo;
-            next_sub_rep_cnt <= (others => '0');
+            next_state           <= fetch;
+            next_program_mem_add <= program_mem_add_int + 1;
+            next_sub_rep_cnt     <= (others => '0');
           else
             next_state       <= op_code_eval;
             next_sub_rep_cnt <= data_from_stack(15 downto 0);
           end if;
         else
           if (ind_sub_rep_mem_data_out = data_from_stack(15 downto 0)) then
-            next_state       <= write_fifo;
-            next_sub_rep_cnt <= (others => '0');
+            next_state           <= fetch;
+            next_program_mem_add <= program_mem_add_int + 1;
+            next_sub_rep_cnt     <= (others => '0');
           else
             next_state       <= op_code_eval;
             next_sub_rep_cnt <= data_from_stack(15 downto 0);
@@ -301,6 +303,19 @@ begin
   op_code         <= program_mem_data(31 downto 28);
   func_call_rep   <= program_mem_data(23 downto 0);
   jump_to_add_rep <= program_mem_data(15 downto 0);
+
+  -- pragma translate_off
+  dbg_proc : process (clk) is
+  begin
+    if rising_edge(clk) then
+      if reset = '0' and pres_state /= next_state then
+        assert false
+          report "FSM: " & state_type'image(pres_state) & " -> " & state_type'image(next_state)
+          severity note;
+      end if;
+    end if;
+  end process dbg_proc;
+  -- pragma translate_on
 
 end architecture Behavioral;
 
