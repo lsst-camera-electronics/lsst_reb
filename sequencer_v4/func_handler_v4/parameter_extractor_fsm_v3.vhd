@@ -308,10 +308,20 @@ begin
   dbg_proc : process (clk) is
   begin
     if rising_edge(clk) then
-      if reset = '0' and pres_state /= next_state then
-        assert false
-          report "FSM: " & state_type'image(pres_state) & " -> " & state_type'image(next_state)
-          severity note;
+      if reset = '0' then
+        if pres_state = op_code_eval or pres_state = fetch or pres_state = sub_jump then
+          assert false
+            report "FSM: st=" & state_type'image(pres_state) &
+                   " nxt=" & state_type'image(next_state) &
+                   " PC=" & integer'image(conv_integer(program_mem_add_int)) &
+                   " data=" & integer'image(conv_integer(program_mem_data(31 downto 28)))
+            severity note;
+        elsif pres_state /= next_state then
+          assert false
+            report "FSM: " & state_type'image(pres_state) & " -> " & state_type'image(next_state) &
+                   " PC=" & integer'image(conv_integer(program_mem_add_int))
+            severity note;
+        end if;
       end if;
     end if;
   end process dbg_proc;

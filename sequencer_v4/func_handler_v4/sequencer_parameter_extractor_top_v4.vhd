@@ -274,5 +274,30 @@ begin
 
   op_code_error_add <= program_mem_rd_add;
 
+  -- Debug: monitor FIFO writes and reads
+  -- pragma translate_off
+  dbg_fifo : process (clk) is
+  begin
+    if rising_edge(clk) then
+      if reset = '0' then
+        if fifo_param_we_reg = '1' then
+          assert false
+            report "FIFO_WR: data=0x" & integer'image(conv_integer(fifo_in_bus(31 downto 28))) &
+                   "_" & integer'image(conv_integer(fifo_in_bus(27 downto 24))) &
+                   " rep=" & integer'image(conv_integer(fifo_in_bus(23 downto 0)))
+            severity note;
+        end if;
+        if fifo_param_re = '1' then
+          assert false
+            report "FIFO_RD: dout=0x" & integer'image(conv_integer(fifo_param_out(31 downto 28))) &
+                   "_" & integer'image(conv_integer(fifo_param_out(27 downto 24))) &
+                   " rep=" & integer'image(conv_integer(fifo_param_out(23 downto 0)))
+            severity note;
+        end if;
+      end if;
+    end if;
+  end process dbg_fifo;
+  -- pragma translate_on
+
 end architecture Behavioral;
 
