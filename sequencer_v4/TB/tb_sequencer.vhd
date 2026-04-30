@@ -108,6 +108,7 @@ architecture sim of tb_sequencer is
   signal reg_wr_data : std_logic_vector(31 downto 0) := (others => '0');
   signal reg_rd_data : std_logic_vector(31 downto 0);
   signal reg_ack     : std_logic;
+  signal reg_fail    : std_logic;
 
   -- DUT inputs (synchronous command interface)
   signal sync_cmd_start     : std_logic := '0';
@@ -224,6 +225,7 @@ begin
       reg_wr_data        => reg_wr_data,
       reg_rd_data        => reg_rd_data,
       reg_ack            => reg_ack,
+      reg_fail           => reg_fail,
       sync_cmd_start     => sync_cmd_start,
       sync_cmd_stop      => sync_cmd_stop,
       sync_cmd_step      => sync_cmd_step,

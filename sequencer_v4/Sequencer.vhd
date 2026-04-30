@@ -24,6 +24,7 @@ entity Sequencer is
     reg_wr_data : in  std_logic_vector(31 downto 0);  -- write data
     reg_rd_data : out std_logic_vector(31 downto 0);  -- read data (valid on reg_ack)
     reg_ack     : out std_logic;                      -- pulse: operation complete
+    reg_fail    : out std_logic;                      -- pulse: operation rejected (write while busy)
 
     -- Synchronous Command Interface
     sync_cmd_start    : in std_logic;
@@ -87,6 +88,7 @@ architecture Behavioral of Sequencer is
   -- Register interface state machine
   type reg_state_type is (IDLE, RESPOND);
   signal reg_state : reg_state_type;
+  signal reg_fail_i : std_logic;  -- latched in IDLE, driven to reg_fail in RESPOND
 
   -- Registered request fields
   signal req_op       : std_logic;
@@ -125,6 +127,7 @@ begin
     if rising_edge(clk) then
       -- Defaults: all single-cycle pulses deassert
       reg_ack            <= '0';
+      reg_fail           <= '0';
       reg_rd_data        <= (others => '0');
       prog_mem_we_i      <= (others => '0');
       ind_func_mem_we_i  <= (others => '0');
@@ -141,6 +144,7 @@ begin
       reg_cmd_stop_i     <= (others => '0');
       reg_cmd_step_i     <= (others => '0');
       override_we_i      <= (others => '0');
+      reg_fail_i         <= '0';
 
       if rst = '1' then
         reg_state <= IDLE;
@@ -167,10 +171,24 @@ begin
               if reg_op = '1' then
                 -- WRITE: assert appropriate WE this cycle
                 if v_instance < NUM_SEQUENCERS_G then
+                  -- Memory writes: rejected while sequencer is busy
                   case v_upper is
-                    when x"10" => out_mem_we_i(v_instance)       <= '1';
-                    when x"20" => time_mem_we_i(v_instance)      <= '1';
-                    when x"30" => prog_mem_we_i(v_instance)      <= '1';
+                    when x"10" | x"20" | x"30" | x"35" | x"36" | x"37" | x"38" =>
+                      if sequencer_busy(v_instance) = '0' then
+                        case v_upper is
+                          when x"10" => out_mem_we_i(v_instance)        <= '1';
+                          when x"20" => time_mem_we_i(v_instance)       <= '1';
+                          when x"30" => prog_mem_we_i(v_instance)       <= '1';
+                          when x"35" => ind_func_mem_we_i(v_instance)   <= '1';
+                          when x"36" => ind_rep_mem_we_i(v_instance)    <= '1';
+                          when x"37" => ind_sub_add_mem_we_i(v_instance)<= '1';
+                          when x"38" => ind_sub_rep_mem_we_i(v_instance)<= '1';
+                          when others => null;
+                        end case;
+                      else
+                        reg_fail_i <= '1';
+                      end if;
+                    -- Control commands: always allowed
                     when x"31" => reg_cmd_step_i(v_instance)     <= '1';
                     when x"32" => reg_cmd_stop_i(v_instance)     <= '1';
                     when x"33" =>
@@ -181,10 +199,6 @@ begin
                       end if;
                     when x"34" =>
                       reg_cmd_start_i(v_instance) <= '1';
-                    when x"35" => ind_func_mem_we_i(v_instance)    <= '1';
-                    when x"36" => ind_rep_mem_we_i(v_instance)     <= '1';
-                    when x"37" => ind_sub_add_mem_we_i(v_instance) <= '1';
-                    when x"38" => ind_sub_rep_mem_we_i(v_instance) <= '1';
                     when x"39" =>
                       if reg_addr(0) = '1' then
                         op_code_error_reset_i(v_instance) <= '1';
@@ -209,7 +223,8 @@ begin
 
           when RESPOND =>
             -- Read data is now stable (address was driven in previous cycle)
-            reg_ack <= '1';
+            reg_ack  <= '1';
+            reg_fail <= reg_fail_i;
 
             if req_op = '0' then
               -- READ: mux the appropriate readback
