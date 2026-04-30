@@ -79,6 +79,8 @@ architecture Behavioral of Sequencer is
   signal op_code_error_add_i : Slv10Array(NUM_SEQUENCERS_G-1 downto 0);
   signal op_code_error_reset_i : std_logic_vector(NUM_SEQUENCERS_G-1 downto 0);
 
+  signal sequencer_busy_i     : std_logic_vector(NUM_SEQUENCERS_G-1 downto 0);
+
   signal enable_conv_shift_i  : std_logic_vector(NUM_SEQUENCERS_G-1 downto 0);
   signal init_conv_shift_i    : std_logic_vector(NUM_SEQUENCERS_G-1 downto 0);
   signal enable_conv_shift_out_i : std_logic_vector(NUM_SEQUENCERS_G-1 downto 0);
@@ -106,6 +108,8 @@ architecture Behavioral of Sequencer is
   signal override_we_i : std_logic_vector(NUM_SENSORS_G-1 downto 0);
 
 begin
+
+  sequencer_busy <= sequencer_busy_i;
 
   assert (NUM_SEQUENCERS_G = 1 or (NUM_SEQUENCERS_G = NUM_SENSORS_G))
     report "The number of sequencers must be 1 or equal to the number of sensors."
@@ -174,7 +178,7 @@ begin
                   -- Memory writes: rejected while sequencer is busy
                   case v_upper is
                     when x"10" | x"20" | x"30" | x"35" | x"36" | x"37" | x"38" =>
-                      if sequencer_busy(v_instance) = '0' then
+                      if sequencer_busy_i(v_instance) = '0' then
                         case v_upper is
                           when x"10" => out_mem_we_i(v_instance)        <= '1';
                           when x"20" => time_mem_we_i(v_instance)       <= '1';
@@ -320,7 +324,7 @@ begin
         op_code_error_reset      => op_code_error_reset_i(i),
         op_code_error            => op_code_error_i(i),
         op_code_error_add        => op_code_error_add_i(i),
-        sequencer_busy           => sequencer_busy(i),
+        sequencer_busy           => sequencer_busy_i(i),
         end_sequence             => end_sequence(i),
         sequencer_out            => sequencer_unaligned(i)
       );
