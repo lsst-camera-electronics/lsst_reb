@@ -97,5 +97,12 @@ $XSIM tb_sequencer_snap --tclbatch run.tcl --log xsim.log 2>&1 | tee xsim_stdout
 
 echo ""
 echo "========================================"
-echo "  Done. See xsim.log for output."
+PASS_COUNT=$(grep -c "^Note: PASS:" xsim.log || true)
+FAIL_COUNT=$(grep -c "^Note: FAIL:" xsim.log || true)
+echo "  Results: $PASS_COUNT PASS, $FAIL_COUNT FAIL"
+if [ "$FAIL_COUNT" -gt 0 ]; then
+    echo ""
+    grep "^Note: FAIL:" xsim.log
+fi
 echo "========================================"
+[ "$FAIL_COUNT" -eq 0 ]

@@ -13,7 +13,7 @@ Claims in this document are tagged with one or more of the following sources:
 | Tag   | Meaning |
 |-------|---------|
 | `[doc]` | User manual: *The LSST REB 5 firmware – User manual*, LCA-XXXXX, Draft 1, 2016 |
-| `[rtl]` | Code inspection of `lsst_reb` (primarily at `cc9fb85`; fix at `f875887`) |
+| `[rtl]` | Code inspection of `lsst_reb` (primarily at `cc9fb85`; fix at `1721535`) |
 | `[sim]` | Simulation (xsim, workspace `~/reb_firmware/sequencer_tb/`) |
 | `[hw]`  | Hardware measurement on physical REB_v5 |
 
@@ -308,7 +308,7 @@ Total pipeline depth from FSM address update to `sequencer_out`: **4 cycles**
 
 **Note (cc9fb85 baseline):** At `cc9fb85`, bit 12 (`adc_trigger`) takes a 2-stage path
 through the aligner instead of 3 stages, producing a 1-cycle glitch at transitions that
-change bit 12. See DISC-005 for details. This was corrected in `lsst_reb` at `f875887`:
+change bit 12. See DISC-005 for details. This was corrected in `lsst_reb` at `1721535`:
 all 32 bits now travel through 3 registered aligner stages. `[rtl]`
 
 ---
@@ -751,7 +751,7 @@ The SRLC32E chain is an optional ADC-trigger delay feature, register-map-control
 is not activated during normal sequencer operation unless explicitly written by software.
 The 2-stage path for bit 12 is therefore the default hardware condition.
 
-**Fix (lsst_reb `f875887`):** A registered flip-flop stage (`srl_input_ff`, instance `ff_ce`)
+**Fix (lsst_reb `1721535`):** A registered flip-flop stage (`srl_input_ff`, instance `ff_ce`)
 was inserted between `sequencer_in(start_adc_bit)` and the SRLC32E input (`srl_q_ch(0)`).
 This gives bit 12 a 3-stage path matching all other bits:
 `sequencer_in(12)` → `srl_input_ff` (1 stage) → SRLC32E tap 0 (1 stage) →
@@ -763,7 +763,7 @@ structural break; it applies only when `enable_conv_shift` is activated by softw
 
 **Hardware status:** All 17 tests were initially captured on hardware at the **pre-fix
 bitstream** (`cc9fb85`); T16 comparison against the pre-fix golden sequence passed
-cycle-exact. The FPGA was subsequently rebuilt with `f875887`. T16 was
+cycle-exact. The FPGA was subsequently rebuilt with `1721535`. T16 was
 re-captured on the fixed bitstream: clean output confirmed, no intermediate cycles.
 `hw_compare.py` expected sequence and `REB_v5/hw_data/T16.csv` updated accordingly.
 All 17/17 tests (later expanded to 21/21) pass on the fixed bitstream. `[hw]`
@@ -774,9 +774,9 @@ All 17/17 tests (later expanded to 21/21) pass on the fixed bitstream. `[hw]`
 - `0x80011234` × 4 — F0 ts0 (first): 3+1
 - `0x80015678` × 1 — F0 ts1: `end_sequence` fires on cycle 1
 
-**Resolution:** Fixed at `f875887` `[rtl]`. Root cause confirmed by RTL inspection.
+**Resolution:** Fixed at `1721535` `[rtl]`. Root cause confirmed by RTL inspection.
 Glitch value and 1-cycle duration confirmed cycle-exact by simulation and hardware
-(against pre-fix bitstream). Fix confirmed on rebuilt FPGA (`f875887` bitstream):
+(against pre-fix bitstream). Fix confirmed on rebuilt FPGA (`1721535` bitstream):
 T16 clean output matches expected no-glitch sequence cycle-exact.
 `[sim][hw][rtl]`
 
@@ -821,12 +821,12 @@ this is programmer convention, not a hardware requirement.
 **Testbench:** T21 in `tb_sequencer.vhd` verifies the don't-care property: it uses the
 same program as T09 (`jump_to_add`, 1-level, rep=1) but encodes `sub_trailer` as
 `0xE000FFFF` (bits[15:0] = `0xFFFF`, maximally different from the jump rep field of `1`).
-Expected output is identical to T09. Hardware confirmed cycle-exact on the `f875887`
+Expected output is identical to T09. Hardware confirmed cycle-exact on the `1721535`
 bitstream. `[sim][hw]`
 
 **Resolution:** Accepted/Documented. `[rtl]` is authoritative; the "must match" convention
 in the documentation and prior testbench comments is incorrect. The testbench header
-comment has been corrected. Hardware confirms T21 cycle-exact on the `f875887` bitstream:
+comment has been corrected. Hardware confirms T21 cycle-exact on the `1721535` bitstream:
 latency and output sequence identical to T09. `[sim][hw]`
 
 **Programming rule:** Do not encode any meaningful value in `sub_trailer` bits[27:0]. The
@@ -1249,7 +1249,7 @@ to the final output (`sequencer_out`): `[rtl]`
 
   ```
   sequencer_in(12)
-    → srl_input_ff        (1 registered stage; added by DISC-005 fix at f875887)
+    → srl_input_ff        (1 registered stage; added by DISC-005 fix at 1721535)
     → SRLC32E chain       (tap depth = shift_counter + 1 registered stages)
     → shift_reg_out_ff    (1 registered stage)
     → sequencer_out(12)
@@ -1258,7 +1258,7 @@ to the final output (`sequencer_out`): `[rtl]`
   Total registered stages for bit 12 = **`shift_counter + 3`**.
 
 At `shift_counter = 0`, bit 12 passes through exactly 3 stages — identical to all other
-bits. This is the zero-offset condition established by the DISC-005 fix (`f875887`). Before
+bits. This is the zero-offset condition established by the DISC-005 fix (`1721535`). Before
 that fix, bit 12 had only 2 stages at `shift_counter = 0`, causing a 1-cycle glitch at
 transitions. `[rtl][sim]`
 
@@ -1466,14 +1466,14 @@ proceeding to the next build:
 
 | Commit | Message | Section |
 |--------|---------|---------|
-| `f875887` | seq_aligner_shifter: fix DISC-005 glitch by equalising pipeline depth for bit 12 | DISC-005 |
-| `063f938` | Sequencer: replace direct memory ports with req/ack register interface | Prerequisite (register interface refactor) |
-| `abe9d17` | Sequencer: expose op_code_error/op_code_error_add as output ports | DISC-007 (testbench observability) |
-| `efc73cc` | extractor: pipeline register on program_memory output | **11.1** |
-| `6ac0bee` | extractor: optimize rep_sub trailer return (skip write_fifo state) | **11.2** |
-| `3f7d2f7` | extractor: add simulation-only debug processes (dbg_proc, dbg_fifo) | **11.4** (supporting) |
-| `b6af0e2` | function_v3: pipeline register on time_mem port A (plus1 lookahead) | **11.4** (time_mem register) |
-| `6f21aad` | function_v3: use registered time_mem output for readback path | **11.5** |
+| `1721535` | seq_aligner_shifter: fix DISC-005 glitch by equalising pipeline depth for bit 12 | DISC-005 |
+| `e78337f` | sequencer_v4/Sequencer: replace direct memory ports with req/ack register interface | Prerequisite (register interface refactor) |
+| `dec5f8b` | sequencer_v4/Sequencer: expose op_code_error/op_code_error_add as output ports | DISC-007 (testbench observability) |
+| `2919bb7` | sequencer_v4/extractor: pipeline register on program_memory output | **11.1** |
+| `f1f22f6` | sequencer_v4/extractor: optimize rep_sub trailer return (skip write_fifo state) | **11.2** |
+| `4057719` | sequencer_v4/extractor: add simulation-only debug processes (dbg_proc, dbg_fifo) | **11.4** (supporting) |
+| `148f3bd` | sequencer_v4/function_v3: pipeline register on time_mem port A (plus1 lookahead) | **11.4** (time_mem register) |
+| `fbaa093` | sequencer_v4/function_v3: use registered time_mem output for readback path | **11.5** |
 
 ### 11.1 Program memory pipeline register
 
