@@ -215,7 +215,7 @@ begin
   end process;
 
   dut : entity lsst_reb.Sequencer
-    generic map (NUM_SENSORS_G => 2, NUM_SEQUENCERS_G => 1)
+    generic map (NUM_SENSORS_G => 2, NUM_SEQUENCERS_G => 1, REG_MAP_G => SEQ_REG_MAP_DEFAULT_C)
     port map (
       clk                => clk,
       rst                => rst,
@@ -301,9 +301,10 @@ begin
     -- Write override register for one sensor (sensor index 0 or 1).
     -- data(31)='1' activates override; data(12:0) = replacement bits [12:0].
     -- data(31)='0' deactivates override.
+    -- Address: addr[23:16]=x"3A", addr[13:12]=sensor index, rest zero.
     procedure write_override (sensor : in integer; data : in std_logic_vector(31 downto 0)) is
     begin
-      reg_write(x"41001" & std_logic_vector(to_unsigned(sensor, 4)), data);
+      reg_write(x"3A" & "00" & std_logic_vector(to_unsigned(sensor, 2)) & x"000", data);
     end procedure;
 
     -- ── Reset ────────────────────────────────────────────────────────────────

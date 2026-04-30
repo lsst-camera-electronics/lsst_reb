@@ -11,7 +11,8 @@ use lsst_reb.SequencerPkg.all;
 entity Sequencer is
   generic (
     NUM_SENSORS_G    : integer range 1 to 3;
-    NUM_SEQUENCERS_G : integer range 1 to 3
+    NUM_SEQUENCERS_G : integer range 1 to 3;
+    REG_MAP_G        : SeqRegMapType
   );
   port (
     clk : in std_logic;
@@ -176,44 +177,45 @@ begin
                 -- WRITE: assert appropriate WE this cycle
                 if v_instance < NUM_SEQUENCERS_G then
                   -- Memory writes: rejected while sequencer is busy
-                  case v_upper is
-                    when x"10" | x"20" | x"30" | x"35" | x"36" | x"37" | x"38" =>
-                      if sequencer_busy_i(v_instance) = '0' then
-                        case v_upper is
-                          when x"10" => out_mem_we_i(v_instance)        <= '1';
-                          when x"20" => time_mem_we_i(v_instance)       <= '1';
-                          when x"30" => prog_mem_we_i(v_instance)       <= '1';
-                          when x"35" => ind_func_mem_we_i(v_instance)   <= '1';
-                          when x"36" => ind_rep_mem_we_i(v_instance)    <= '1';
-                          when x"37" => ind_sub_add_mem_we_i(v_instance)<= '1';
-                          when x"38" => ind_sub_rep_mem_we_i(v_instance)<= '1';
-                          when others => null;
-                        end case;
-                      else
-                        reg_fail_i <= '1';
+                  if v_upper = REG_MAP_G.out_mem or v_upper = REG_MAP_G.time_mem or
+                     v_upper = REG_MAP_G.prog_mem or v_upper = REG_MAP_G.ind_func or
+                     v_upper = REG_MAP_G.ind_rep or v_upper = REG_MAP_G.ind_sub_add or
+                     v_upper = REG_MAP_G.ind_sub_rep then
+                    if sequencer_busy_i(v_instance) = '0' then
+                      if    v_upper = REG_MAP_G.out_mem     then out_mem_we_i(v_instance)        <= '1';
+                      elsif v_upper = REG_MAP_G.time_mem    then time_mem_we_i(v_instance)       <= '1';
+                      elsif v_upper = REG_MAP_G.prog_mem    then prog_mem_we_i(v_instance)       <= '1';
+                      elsif v_upper = REG_MAP_G.ind_func    then ind_func_mem_we_i(v_instance)   <= '1';
+                      elsif v_upper = REG_MAP_G.ind_rep     then ind_rep_mem_we_i(v_instance)    <= '1';
+                      elsif v_upper = REG_MAP_G.ind_sub_add then ind_sub_add_mem_we_i(v_instance)<= '1';
+                      elsif v_upper = REG_MAP_G.ind_sub_rep then ind_sub_rep_mem_we_i(v_instance)<= '1';
                       end if;
-                    -- Control commands: always allowed
-                    when x"31" => reg_cmd_step_i(v_instance)     <= '1';
-                    when x"32" => reg_cmd_stop_i(v_instance)     <= '1';
-                    when x"33" =>
-                      if reg_addr(0) = '0' then
-                        enable_conv_shift_i(v_instance) <= '1';
-                      else
-                        init_conv_shift_i(v_instance) <= '1';
-                      end if;
-                    when x"34" =>
-                      reg_cmd_start_i(v_instance) <= '1';
-                    when x"39" =>
-                      if reg_addr(0) = '1' then
-                        op_code_error_reset_i(v_instance) <= '1';
-                      end if;
-                    when others => null;
-                  end case;
+                    else
+                      reg_fail_i <= '1';
+                    end if;
+                  -- Control commands: always allowed
+                  elsif v_upper = REG_MAP_G.step_cmd then
+                    reg_cmd_step_i(v_instance) <= '1';
+                  elsif v_upper = REG_MAP_G.stop_cmd then
+                    reg_cmd_stop_i(v_instance) <= '1';
+                  elsif v_upper = REG_MAP_G.conv_shift then
+                    if reg_addr(0) = '0' then
+                      enable_conv_shift_i(v_instance) <= '1';
+                    else
+                      init_conv_shift_i(v_instance) <= '1';
+                    end if;
+                  elsif v_upper = REG_MAP_G.start_addr then
+                    reg_cmd_start_i(v_instance) <= '1';
+                  elsif v_upper = REG_MAP_G.error_stat then
+                    if reg_addr(0) = '1' then
+                      op_code_error_reset_i(v_instance) <= '1';
+                    end if;
+                  end if;
                 end if;
 
-                -- Override writes (sensor-indexed, address x"41")
-                if v_upper = x"41" then
-                  v_sensor := to_integer(unsigned(reg_addr(1 downto 0)));
+                -- Override writes (sensor-indexed)
+                if v_upper = REG_MAP_G.override then
+                  v_sensor := to_integer(unsigned(reg_addr(13 downto 12)));
                   if v_sensor < NUM_SENSORS_G then
                     override_we_i(v_sensor) <= '1';
                   end if;
@@ -233,26 +235,33 @@ begin
             if req_op = '0' then
               -- READ: mux the appropriate readback
               if req_instance < NUM_SEQUENCERS_G then
-                case req_upper is
-                  when x"10" => reg_rd_data <= out_mem_rd_i(req_instance);
-                  when x"20" => reg_rd_data(15 downto 0) <= time_mem_rd_i(req_instance);
-                  when x"30" => reg_rd_data <= prog_mem_rd_i(req_instance);
-                  when x"33" => reg_rd_data(0) <= enable_conv_shift_out_i(req_instance);
-                  when x"34" => reg_rd_data(9 downto 0) <= start_addr_rd_i(req_instance);
-                  when x"35" => reg_rd_data(3 downto 0) <= ind_func_mem_rd_i(req_instance);
-                  when x"36" => reg_rd_data(23 downto 0) <= ind_rep_mem_rd_i(req_instance);
-                  when x"37" => reg_rd_data(9 downto 0) <= ind_sub_add_mem_rd_i(req_instance);
-                  when x"38" => reg_rd_data(15 downto 0) <= ind_sub_rep_mem_rd_i(req_instance);
-                  when x"39" =>
-                    reg_rd_data(0) <= op_code_error_i(req_instance);
-                    reg_rd_data(10 downto 1) <= op_code_error_add_i(req_instance);
-                  when others => null;
-                end case;
+                if    req_upper = REG_MAP_G.out_mem then
+                  reg_rd_data <= out_mem_rd_i(req_instance);
+                elsif req_upper = REG_MAP_G.time_mem then
+                  reg_rd_data(15 downto 0) <= time_mem_rd_i(req_instance);
+                elsif req_upper = REG_MAP_G.prog_mem then
+                  reg_rd_data <= prog_mem_rd_i(req_instance);
+                elsif req_upper = REG_MAP_G.conv_shift then
+                  reg_rd_data(0) <= enable_conv_shift_out_i(req_instance);
+                elsif req_upper = REG_MAP_G.start_addr then
+                  reg_rd_data(9 downto 0) <= start_addr_rd_i(req_instance);
+                elsif req_upper = REG_MAP_G.ind_func then
+                  reg_rd_data(3 downto 0) <= ind_func_mem_rd_i(req_instance);
+                elsif req_upper = REG_MAP_G.ind_rep then
+                  reg_rd_data(23 downto 0) <= ind_rep_mem_rd_i(req_instance);
+                elsif req_upper = REG_MAP_G.ind_sub_add then
+                  reg_rd_data(9 downto 0) <= ind_sub_add_mem_rd_i(req_instance);
+                elsif req_upper = REG_MAP_G.ind_sub_rep then
+                  reg_rd_data(15 downto 0) <= ind_sub_rep_mem_rd_i(req_instance);
+                elsif req_upper = REG_MAP_G.error_stat then
+                  reg_rd_data(0) <= op_code_error_i(req_instance);
+                  reg_rd_data(10 downto 1) <= op_code_error_add_i(req_instance);
+                end if;
               end if;
 
               -- Override reads (sensor-indexed)
-              if req_upper = x"41" then
-                v_sensor := to_integer(unsigned(req_addr(1 downto 0)));
+              if req_upper = REG_MAP_G.override then
+                v_sensor := to_integer(unsigned(req_addr(13 downto 12)));
                 if v_sensor < NUM_SENSORS_G then
                   reg_rd_data <= sequencer_override(v_sensor);
                 end if;
