@@ -55,12 +55,51 @@ It reports per-test MATCH/MISMATCH with details on the first divergence.
 
 ## Hardware validation
 
-Two additional scripts support validation against real hardware via Vivado ILA:
+Two additional scripts support validation against real hardware via Vivado ILA.
 
-- **`hw_capture.py`** — generates a Vivado batch Tcl script that triggers and
-  captures ILA data for each test case from a running REB.
-- **`hw_compare.py`** — compares the captured ILA CSV files against the
-  simulation reference set.
+### Required ILA probes
+
+The bitstream must include an ILA core (`u_ila_0`) capturing these signals:
+
+| Signal | Width | Purpose |
+|--------|-------|---------|
+| `U_REB_v5/sync_cmd_start_seq` | 1-bit | Trigger (rising edge) |
+| `U_REB_v5/sequencer_busy` | 1-bit | Marks active window |
+| `U_REB_v5/end_sequence` | 1-bit | Marks sequence completion |
+| `U_REB_v5/sequencer_out_slv` | 32-bit | Sequencer output bus |
+
+ILA configuration: depth 32768 samples at 100 MHz (327.68 us capture window),
+trigger position at 10% (3276 samples pre-trigger).
+
+### Running a capture
+
+Prerequisites:
+- Vivado `hw_server` running and accessible (default: `rddev101:3121`; edit
+  `HW_SERVER` in `hw_capture.py` if different).
+- `rms_write`, `rms_reset`, and `scs_editor` in PATH.
+- The `.ltx` probes file from the build (path set in `LTX_FILE`).
+
+```bash
+python3 hw_capture.py --partition <name> [--outdir hw_data] [--tests T01,T02,...] [--dry-run]
+```
+
+The script generates a Vivado batch Tcl file per test that:
+1. Connects to `hw_server` and configures the ILA trigger.
+2. Arms the ILA.
+3. Resets the sequencer FSM and loads test memory via `rms_write`.
+4. Fires the sequencer via `scs_editor`.
+5. Waits for capture, exports the waveform as CSV, and resets.
+
+Use `--dry-run` to inspect the generated Tcl without invoking Vivado.
+
+### Comparing hardware vs simulation
+
+```bash
+python3 hw_compare.py hw_data/ sim_data/
+```
+
+Reports per-test MATCH/MISMATCH between hardware captures and simulation
+reference CSVs.
 
 These require a connected REB with the ILA debug core present in the
 bitstream.

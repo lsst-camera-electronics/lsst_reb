@@ -12,9 +12,9 @@ a third trigger).
   1. Opens the hardware manager and connects to the hw_server.
   2. Configures the ILA (u_ila_0) to trigger on sync_cmd_start_seq rising edge.
   3. Arms the ILA.
-  4. Resets the sequencer FSM (rms_reset gregg -a) before loading memory.
+  4. Resets the sequencer FSM (rms_reset <partition> -a) before loading memory.
   5. Loads memory via rms_write (called from Tcl via exec).
-  6. Fires the sequencer trigger (scs_editor gregg, stdin = "trigger 0").
+  6. Fires the sequencer trigger (scs_editor <partition>, stdin = "trigger 0").
   7. Waits for ILA capture to complete.
   8. Exports the captured data as a CSV.
   9. Resets the sequencer FSM again (post-capture cleanup).
@@ -25,7 +25,7 @@ does not assert sync_cmd_start_seq, so the ILA trigger never fires.  T25b is mar
 sim-only for hardware comparison.
 
 Usage:
-    python3 hw_capture.py [--outdir DIR] [--tests T01,T02,...] [--dry-run]
+    python3 hw_capture.py --partition <name> [--outdir DIR] [--tests T01,T02,...] [--dry-run]
 
 Options:
     --outdir DIR        Directory for CSV output (default: ./hw_data)
@@ -35,7 +35,7 @@ Options:
 Requirements (on hardware host):
     - vivado in PATH
     - rms_write, rms_read, rms_reset, scs_editor in PATH or at
-      /opt/lsst/daq-sdk/R5-gregg/x86/bin/
+      the location specified by TOOL_PREFIX below
     - Vivado hw_server running on rddev101:3121
     - debug_nets.ltx at the path defined in LTX_FILE below
 
@@ -67,7 +67,7 @@ import tempfile
 
 HW_SERVER   = "rddev101:3121"
 PROBE_PREFIX = "U_REB_v5"
-DAQ_PARTITION = "gregg"
+DAQ_PARTITION = None      # set by --partition CLI argument (required)
 LTX_FILE    = "/home/jgt/reb_firmware/REB_v5/build/REB_v5/REB_v5_project.runs/impl_1/debug_nets.ltx"
 ILA_DEPTH   = 32768
 TRIG_POS    = 3276        # 10% of depth
@@ -847,8 +847,10 @@ def make_tcl(test, csv_path):
 def parse_args():
     p = argparse.ArgumentParser(description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("--outdir", default=os.path.join(os.path.dirname(__file__), "REB_v5", "hw_data"),
-                   help="Output directory for CSV files (default: ./REB_v5/hw_data)")
+    p.add_argument("--partition", required=True,
+                   help="DAQ partition name (required)")
+    p.add_argument("--outdir", default=os.path.join(os.path.dirname(__file__), "hw_data"),
+                   help="Output directory for CSV files (default: ./hw_data)")
     p.add_argument("--tests", default=None,
                    help="Comma-separated list of test names to run (default: all)")
     p.add_argument("--dry-run", action="store_true",
@@ -859,7 +861,9 @@ def parse_args():
 
 
 def main():
+    global DAQ_PARTITION
     args = parse_args()
+    DAQ_PARTITION = args.partition
 
     # Filter test list
     if args.tests:
