@@ -1,0 +1,13 @@
+sim_data/
+xsim.dir/
+xvhdl.ini
+xvhdl.pb
+xelab.pb
+xelab.log
+xsim.log
+xsim_stdout.log
+run.tcl
+*.jou
+*.wdb
+.Xil/
+__pycache__/
