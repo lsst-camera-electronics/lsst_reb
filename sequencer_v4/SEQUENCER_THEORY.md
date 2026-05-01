@@ -13,11 +13,11 @@ Claims in this document are tagged with one or more of the following sources:
 | Tag   | Meaning |
 |-------|---------|
 | `[doc]` | User manual: *The LSST REB 5 firmware – User manual*, LCA-XXXXX, Draft 1, 2016 |
-| `[rtl]` | Code inspection of `lsst_reb` (primarily at `cc9fb85`; fix at `1721535`) |
-| `[sim]` | Simulation (xsim, workspace `~/reb_firmware/sequencer_tb/`) |
+| `[rtl]` | Code inspection of `lsst_reb` (baseline `cc9fb85`; current `9f99a8a`) |
+| `[sim]` | Simulation (xsim testbench `sequencer_v4/TB/tb_sequencer.vhd`) |
 | `[hw]`  | Hardware measurement on physical REB_v5 |
 
-Where sources disagree, the discrepancy is recorded in the **Discrepancies** section.
+Where sources disagree, the discrepancy is recorded in **Appendix C**.
 
 ---
 
@@ -35,6 +35,57 @@ nanoseconds. This document converts those values to cycles throughout.
 
 ---
 
+## April 2026 Design Changes
+
+### Problem
+
+The sequencer was originally designed for a 100 MHz system clock (10 ns period). At
+156.25 MHz (6.4 ns period), single-sequencer targets could not reliably meet timing, and
+multi-sequencer targets could not meet timing at all. The dominant bottleneck was
+combinational paths through distributed LUT-RAM memories used for program storage, indirect
+operands, and time/output lookup.
+
+### Methodology
+
+A characterisation-first approach was used. Before making any RTL changes:
+
+1. A simulation testbench was developed (38 waveform tests covering all opcodes, edge cases,
+   and known hazards — see Appendix A).
+2. Simulation results were validated against hardware captures on a physical REB_v5 to
+   confirm the testbench accurately models real behaviour.
+3. This baseline established the cycle-exact output contract: all subsequent RTL changes
+   must produce identical output waveforms (values and durations from first-output-change
+   through end_sequence). Only startup latency changes are acceptable.
+
+RTL modifications were then made incrementally — one pipeline register or path fix at a
+time. After each change, the testbench was run to full pass before requesting a new
+Vivado build. Each build revealed the next critical path, which guided the next modification.
+
+### Changes
+
+Categories:
+- **Timing** — RTL change made specifically to meet timing at 6.4 ns.
+- **Bugfix** — Correction of incorrect behaviour discovered during characterisation.
+- **Supporting** — Infrastructure or portability change that does not affect timing or output behaviour.
+
+| Commit | Description | Category |
+|--------|-------------|----------|
+| `1721535` | Equalise pipeline depth for bit 12 in aligner (DISC-005) | Bugfix |
+| `e78337f` | Replace direct memory ports with req/ack register interface | Timing |
+| `dec5f8b` | Expose op_code_error/op_code_error_add as output ports (DISC-007) | Bugfix |
+| `2919bb7` | Pipeline register on program_memory output | Timing |
+| `f1f22f6` | Optimize rep_sub trailer return (skip write_fifo state) | Timing |
+| `4057719` | Add simulation-only debug processes (pragma-guarded) | Supporting |
+| `148f3bd` | Pipeline register on time_mem port A (plus1 lookahead) | Timing |
+| `fbaa093` | Use registered time_mem output for readback path | Timing |
+| `094ba53` | Reject memory writes while sequencer is busy (reg_fail) | Bugfix |
+| `3bd6e80` | Fix synthesis error reading out-mode port sequencer_busy | Bugfix |
+| `9f99a8a` | Configurable register map via SeqRegMapType generic | Supporting |
+
+See Appendix B for detailed implementation notes on each timing modification.
+
+---
+
 ## 1. Introduction
 
 ### What the sequencer is
@@ -47,42 +98,36 @@ correct output value on the correct cycle. `[doc][rtl]`
 ### Major functional blocks
 
 ```
-  ┌─────────────────────────────────────────────────────────────────────┐
-  │                  sequencer_parameter_extractor_top_v4               │
-  │                                                                     │
-  │  prog_mem ──┐                                                       │
-  │             ├──► parameter_extractor_fsm_v3 ──► seq_param_fifo ──►  │──► fifo_param_out
-  │  ind_*_mem ─┘          (resolve indirect           (32-entry        │
-  │                          operands)                  block-RAM FIFO) │
-  └─────────────────────────────────────────────────────────────────────┘
-                                                              │
-                                                    fifo_param_out (32 bits)
-                                                    [31:28] prog_end_opcode
-                                                    [27:24] func_id
-                                                    [23]    inf_loop
-                                                    [22:0]  rep_count
-                                                              │
-  ┌───────────────────────────────────────────────────────────▼─────────┐
-  │                        function_v3_top                              │
-  │                                                                     │
-  │  ┌─────────────────────┐    func_start   ┌──────────────────────┐   │
-  │  │ function_executor_v3│ ──────────────► │     function_v3      │   │
-  │  │                     │ ◄────────────── │  (function_fsm_v3 +  │   │
-  │  │  - rep counter      │   function_end  │   out_mem + time_mem)│   │
-  │  │  - sequencer_busy   │                 └──────────┬───────────┘   │
-  │  │  - end_sequence     │                            │ signal_out    │
-  │  └─────────────────────┘                 ┌──────────▼───────────┐   │
-  │                                          │     output_reg       │   │
-  │                                          │  (1 FF, ce-gated)    │   │
-  │                                          └──────────┬───────────┘   │
-  └─────────────────────────────────────────────────────┼───────────────┘
-                                                        │
-                                           ┌────────────▼─────────────┐
-                                           │ sequencer_aligner_shifter│
-                                           │   (3 registered stages)  │
-                                           └────────────┬─────────────┘
-                                                        │
-                                                  sequencer_out
+  ┌───────────────────────────────────────────────────────────────┐
+  │            sequencer_parameter_extractor_top_v4               │
+  │                                                               │
+  │  prog_mem ──┐                                                 │
+  │             ├──► parameter_extractor_fsm_v3 ──► seq_param_fifo│
+  │  ind_*_mem ─┘    (resolve indirect operands)    (1024-entry   │
+  │                                                  BRAM FIFO)   │
+  └──────────────────────────────────────────────────────┬────────┘
+                                                         │
+  ┌──────────────────────────────────────────────────────▼────────┐
+  │                      function_v3_top                          │
+  │                                                               │
+  │  ┌─────────────────────┐  func_start   ┌────────────────────┐ │
+  │  │ function_executor_v3│ ────────────► │    function_v3     │ │
+  │  │                     │ ◄──────────── │ (function_fsm_v3 + │ │
+  │  │  - rep counter      │  function_end │  out_mem + time_mem│ │
+  │  │  - sequencer_busy   │               └─────────┬──────────┘ │
+  │  │  - end_sequence     │                         │ signal_out │
+  │  └─────────────────────┘               ┌─────────▼──────────┐ │
+  │                                        │    output_reg      │ │
+  │                                        │  (1 FF, ce-gated)  │ │
+  │                                        └─────────┬──────────┘ │
+  └──────────────────────────────────────────────────┼────────────┘
+                                                     │
+                                      ┌──────────────▼───────────────┐
+                                      │ sequencer_aligner_shifter_top│
+                                      │    (3 registered stages)     │
+                                      └──────────────┬───────────────┘
+                                                     │
+                                               sequencer_out
 ```
 
 **Data flow summary:**
@@ -93,7 +138,9 @@ correct output value on the correct cycle. `[doc][rtl]`
 
 2. The **FIFO** (`seq_param_fifo`) decouples the extractor from the executor. The extractor
    runs ahead, filling the FIFO while the executor works through the current function. The FIFO
-   is a 32-entry block-RAM FIFO (surf `FifoSync`). `[rtl]`
+   is a 1024-entry block-RAM FIFO, 32 bits wide (surf `FifoSync`, `ADDR_WIDTH_G => 10`).
+   Each entry encodes: `[31:28]` prog_end_opcode, `[27:24]` func_id, `[23]` inf_loop,
+   `[22:0]` rep_count. `[rtl]`
 
 3. The **function executor** (`function_executor_v3`) dequeues entries from the FIFO one at a
    time. It manages the repetition counter, drives `func_start` to the function FSM, asserts
@@ -134,8 +181,9 @@ Both memories are **distributed LUT-RAM** with combinatorial (zero-latency) port
 **Termination rule:** The FSM checks `time_mem[func_id × 16 + i + 1]` (the *next* slice's
 duration) before advancing. If it is zero, the current slice is treated as the last. This means
 a function with a single non-zero entry at slot 0 and zero at slot 1 executes only slice 0.
-The function executor guards against this at startup: if `time_mem[func_id × 16 + 1] = 0`
-when `func_start` is asserted, the FSM refuses to enter `ts0` and the executor stalls. `[rtl]`
+The function FSM (`function_fsm_v3`) guards against this at startup: if
+`time_mem[func_id × 16 + 1] = 0` when `func_start` is asserted, the FSM remains in
+`wait_start` without asserting `function_end`, and the executor stalls indefinitely. `[rtl]`
 See also: F0 and the idle output (Section 5).
 
 ### 2.2 Program memory (`prog_mem`)
@@ -183,7 +231,7 @@ up to 16 levels deep. `[doc][rtl]`
 instructions** before its `sub_trailer`. A body containing only 1 `func_call` causes the
 `sub_trailer` to be consumed prematurely by the extractor pipeline; the return to the calling
 context never occurs and the inner body address is re-executed indefinitely. `[sim]` See
-**DISC-004** in the Discrepancies section.
+**DISC-004** in Appendix C.
 
 **Stack word format `[rtl][sim]`:**
 
@@ -223,14 +271,13 @@ advances through `prog_mem`, decodes each instruction, and pushes a resolved 32-
 
 State sequence for the common case (`func_call`, opcode 0x1): `[rtl]`
 
-```
-wait_start  (1 cycle: on start_sequence pulse, latch program_mem_init_add)
-op_code_eval (1 cycle: read opcode, check rep count)
-simple_func_op (1 cycle: prepare FIFO data)
-write_fifo  (1 cycle: assert fifo_param_write; increment program_mem_add)
-wait_fifo   (1 cycle: pipeline bubble)
-→ back to op_code_eval for next instruction
-```
+| State | Cycles | Action |
+|-------|--------|--------|
+| `wait_start` | 1 | On `start_sequence` pulse, latch `program_mem_init_add` |
+| `op_code_eval` | 1 | Read opcode, check rep count |
+| `simple_func_op` | 1 | Prepare FIFO data |
+| `write_fifo` | 1 | Assert `fifo_param_write`; increment `program_mem_add` |
+| `wait_fifo` | 1 | Pipeline bubble; return to `op_code_eval` |
 
 Total extractor cycles to push one `func_call` entry into the FIFO: **5 cycles** from
 `start_sequence` pulse. `[rtl]`
@@ -254,12 +301,12 @@ This FIFO latency contributes to startup latency (see Section 4.2).
 The executor FSM (`function_executor_v3`) dequeues one FIFO entry per function call and drives
 the function FSM. Key states: `[rtl]`
 
-```
-wait_start       idle; sequencer_busy=0; watching fifo_empty
-start_func       (1 cycle) assert fifo_read_en; next cycle asserts func_start
-func_exe         running; sequencer_busy=1; waiting for function_end
-func_rep         (1 cycle) restart same function for next repetition
-```
+| State | Action |
+|-------|--------|
+| `wait_start` | Idle; `sequencer_busy=0`; waiting on `fifo_empty` to deassert |
+| `start_func` | (1 cycle) Assert `fifo_read_en`; next cycle asserts `func_start` |
+| `func_exe` | Running; `sequencer_busy=1`; waiting for `function_end` |
+| `func_rep` | (1 cycle) Restart same function for next repetition |
 
 When `function_end='1'` in `func_exe` and `prog_end_opcode='1111'` (i.e. the FIFO entry came
 from an `end_sequence` instruction), the executor transitions to `wait_start` and asserts
@@ -278,23 +325,8 @@ starting at 1 and counting up to `time_mem[i]`. The FSM stays in state `tsN` whi
 ### 3.5 Output path
 
 ```
-func_out_add (registered, 4-bit timeslice index)
-    + fifo_param_out[27:24] (4-bit function ID, from FIFO output register)
-         │
-         ▼
-    out_mem (distributed LUT-RAM, combinatorial port-B read)
-         │  signal_out_func
-         ▼
-    output_reg (generic_reg_ce_init, 1 flip-flop)
-         │  clock-enable: out_ce = not(out_ce_1 or out_ce_2)
-         │  where out_ce_1 = function_end or veto_out
-         │        out_ce_2 = out_ce_1 delayed 1 cycle
-         │  → out_ce is deasserted for 2 cycles after function_end
-         ▼
-    sequencer_aligner_shifter_top (3 registered pipeline stages)
-         │
-         ▼
-    sequencer_out
+out_mem[{func_id, timeslice}] → output_reg → aligner (×3 stages) → sequencer_out
+   (LUT-RAM, combinatorial)    (1 FF, ce-gated)    (registered)
 ```
 
 The `out_ce` gating serves two purposes: `[rtl]`
@@ -306,10 +338,24 @@ The `out_ce` gating serves two purposes: `[rtl]`
 Total pipeline depth from FSM address update to `sequencer_out`: **4 cycles**
 (1 for `output_reg` + 3 for aligner). `[rtl]`
 
-**Note (cc9fb85 baseline):** At `cc9fb85`, bit 12 (`adc_trigger`) takes a 2-stage path
-through the aligner instead of 3 stages, producing a 1-cycle glitch at transitions that
-change bit 12. See DISC-005 for details. This was corrected in `lsst_reb` at `1721535`:
-all 32 bits now travel through 3 registered aligner stages. `[rtl]`
+**Control output skew:** The control signals `sequencer_busy` and `end_sequence` are driven
+directly by the function executor with no pipeline stages. They therefore **lead**
+`sequencer_out` by 4 cycles: `[rtl]`
+
+- At start of sequence: `sequencer_busy` asserts 4 cycles before the first output change
+  appears at `sequencer_out`.
+- At end of sequence: `end_sequence` fires 4 cycles before `sequencer_out` reflects the
+  final state. `sequencer_busy` drops 1 cycle after `end_sequence`.
+- Between functions: the executor transitions immediately (1 cycle in `func_rep` or
+  `start_func`); `sequencer_out` reflects the corresponding output change 4 cycles later.
+
+This skew is a fundamental architectural property — it applies to all programs, not just
+specific opcodes or functions. Any external logic sampling both `sequencer_out` and the
+control outputs must account for this 4-cycle offset. `[rtl][sim][hw]`
+
+**Note:** In the `cc9fb85` baseline, bit 12 (`adc_trigger`) took a 2-stage path through
+the aligner instead of 3, producing a 1-cycle glitch at transitions. This has been
+corrected; all 32 bits now travel through 3 registered aligner stages. See DISC-005. `[rtl]`
 
 ---
 
@@ -351,10 +397,9 @@ matching `3+1` and `5+2`. `[sim]`
 The startup latency is the number of cycles from the `sync_cmd_start` pulse to the first
 change in `sequencer_out`. It depends on the first instruction in the program. `[doc][sim]`
 
-#### 4.2.1 Measured values (cc9fb85)
+#### 4.2.1 Measured values (cc9fb85 baseline)
 
-A dedicated latency sweep (`tb_latency.vhd`, 8 probes) was run to characterise startup
-latency across all direct and indirect opcode types. `[sim]`
+Startup latency was characterised across all direct and indirect opcode types. `[sim]`
 
 | Opcode / scenario | trigger→busy | trigger→first-change | busy→first-change |
 |---|---|---|---|
@@ -431,7 +476,7 @@ The user manual states: `[doc]`
 > *"A program that has an OP code 0x1 on the address 0 will start 40 ns after the trigger."*
 > = **4 cycles** at 100 MHz.
 
-The measured value at cc9fb85 is **12 cycles**. See **DISC-002** in the Discrepancies section.
+The measured value at `cc9fb85` (baseline) is **12 cycles**. See **DISC-002** in Appendix C.
 
 The startup latency is **reported but not tested** by the characterisation testbench — it is
 a latency, not a correctness criterion.
@@ -478,7 +523,7 @@ The intent is clear: F0 slice 0 is the idle/default output pattern. `[doc]`
 
 The single-slice restriction ("composed only by one time slice") is a **programming
 convention, not a hardware enforcement**. The RTL places no restriction on the number of
-slices in F0. `[rtl]` See **DISC-001** in the Discrepancies section.
+slices in F0. `[rtl]` See **DISC-001** in Appendix C.
 
 ### 5.3 F0 and `end_sequence`
 
@@ -492,23 +537,21 @@ during `end_sequence` execution is F0's programmed output values. After `end_seq
 completes, the idle mechanism (Section 5.1) resumes, and `sequencer_out` returns to
 `out_mem[0x00]`. `[rtl]`
 
-**When does `end_sequence` appear at `sequencer_out`?**
+**Timing of `end_sequence` relative to F0 output:**
 
-`end_sequence` is asserted at the executor level when F0's function FSM reaches
-`time_mem[1]` on the last-slice counter. Due to the aligner pipeline, `sequencer_out`
-and `end_sequence` are both visible at the ILA 4 cycles before the last raw cycle of
-F0 ts1 has elapsed. The number of cycles that F0 ts1 is visible at `sequencer_out`
-before `end_sequence` fires is:
+Because `end_sequence` is unpiped and `sequencer_out` is 4 cycles downstream (see
+Section 3.5), F0's last slice is only partially visible at `sequencer_out` when
+`end_sequence` fires. The number of cycles F0 ts1 is visible before `end_sequence`:
 
 ```
 visible_cycles(F0 ts1) = (t1 + 2) - 4   where t1 = time_mem[0x01]
 ```
 
-For the standard F0 (`t1 = 3`): visible = `(3+2) - 4 = 1` cycle.
-For T12's F0 (`t1 = 6`): visible = `(6+2) - 4 = 4` cycles.
+For the standard F0 (`t1 = 3`): visible = 1 cycle.
+For T12's F0 (`t1 = 6`): visible = 4 cycles.
 
-Hardware confirmed (T12): `end_sequence` fires on cycle 4 of F0 ts1, with
-`00000200` visible for 4 cycles at `sequencer_out`. `[sim][hw]`
+Hardware confirmed (T12): `end_sequence` fires on cycle 4 of F0 ts1, with `00000200`
+visible for 4 cycles at `sequencer_out`. `[sim][hw]`
 
 **Consequence for programming:** F0 must satisfy the function executor's minimum-function
 guard: `time_mem[0x01]` (F0 slice 1 duration) must be non-zero, or the executor will stall
@@ -516,7 +559,323 @@ when processing `end_sequence`. The minimum working F0 is therefore **two slices
 
 ---
 
-## 6. Verification implications
+## 6. Infinite-loop mechanism
+
+### 6.1 Overview
+
+The sequencer supports an infinite-loop execution mode activated by the `inf_loop` bit in
+the FIFO word. When active, the executor repeats the same function indefinitely instead of
+advancing to the next FIFO entry. The loop can be stopped or stepped via two control inputs
+(`func_stop`, `func_step`), which are driven by either the sync commands
+(`sync_cmd_stop`, `sync_cmd_step`) or the register commands (`reg_cmd_stop`,
+`reg_cmd_step`) at the top level. `[rtl]`
+
+**Verification of infinite-loop mode is simulation-only:** the stop/step inputs
+cannot be driven from an external ILA trigger, so hardware capture (`hw_compare.py`) is
+not applicable for T23/T24. `[sim]`
+
+### 6.2 FIFO word encoding
+
+The `inf_loop` flag occupies **bit [23]** of the resolved 32-bit FIFO word:
+
+```
+[31:28] prog_end_opcode   (0xF for end_sequence, 0x0 for all func_call variants)
+[27:24] func_id           (F0–F15)
+[23]    inf_loop          (1 = infinite loop; 0 = normal single/rep execution)
+[22:0]  rep_count         (ignored when inf_loop=1)
+```
+
+A `func_call` with `inf_loop=1` is encoded as `0x11800000` for F1 (func_id=1, inf_loop=1,
+rep_count=0). The parameter extractor sets this bit from bit [23] of the program word for
+opcode 0x1; the bit is preserved through the FIFO unchanged. `[rtl]`
+
+### 6.3 Executor FSM states
+
+The function executor (`function_executor_v3`) has the following additional states beyond
+those listed in Section 3.3: `[rtl]`
+
+```
+infinite_loop_run       running in infinite-loop mode; watching func_end, func_stop, func_step
+infinite_loop_restart   (1 cycle) re-issues func_start to restart the same function
+empting_fifo            draining FIFO after stop command; pops end_seq token
+```
+
+**State transitions:**
+
+- In `start_func`: if `fifo_param_out[23] = '1'` (inf_loop), executor enters `infinite_loop_run`
+  instead of `func_exe`.
+- In `infinite_loop_run` + `func_end='1'` + `func_stop='0'` + `func_step='0'`:
+  → `infinite_loop_restart` (loop continues).
+- In `infinite_loop_run` + `func_end='1'` + `func_stop='1'`:
+  → `empting_fifo` (stop path).
+- In `infinite_loop_run` + `func_end='1'` + `func_stop='0'` + `func_step='1'`:
+  → `start_func` (step path — pops next FIFO entry, which is end_seq).
+- In `empting_fifo`: pops FIFO entries until `prog_end_opcode = '1111'` (end_seq token) is
+  found; then transitions to `wait_start` via the normal end_sequence path.
+
+**`sequencer_busy`:** Asserted throughout `infinite_loop_run`, `infinite_loop_restart`, and
+`empting_fifo`. Drops on the cycle after `end_sequence` fires, as for normal execution. `[rtl]`
+
+### 6.4 `infinite_loop_restart` timing anomaly
+
+When transitioning from `infinite_loop_restart` back to the start of the function, the
+executor issues `func_start='1'` **without** asserting `veto_out`. `[rtl]`
+
+In normal function-to-function transitions the `veto_out` signal causes the 2-cycle
+`out_ce` freeze (Section 3.5), holding the previous function's last-slice value in
+`output_reg` during the boundary. Without this freeze, `output_reg` begins capturing the
+restarted function's ts0 value one cycle earlier.
+
+**Consequence:** ts0 of every loop iteration except the very first appears at `sequencer_out`
+for **one fewer cycle** than the first-iteration ts0:
+
+| ts0 occurrence | Duration at `sequencer_out` |
+|---|---|
+| First iteration (normal `start_func`) | `time_mem[0] + 1` cycles |
+| Subsequent iterations (`infinite_loop_restart`) | `time_mem[0]` cycles |
+
+For F1 with `time_mem[0x10]=3`: ts0 appears for 4 cycles on iteration 1, then 3 cycles on
+all subsequent iterations. See **DISC-012** for root cause analysis and fix disposition.
+`[sim]`
+
+### 6.5 Stop path timing (T23)
+
+TB program: `[0] 0x11800000` (func_call F1, inf_loop=1), `[1] 0xF0000000` (end_seq).
+F1: ts0=0xCC (time=3), ts1=0xDD (time=5). `sync_cmd_stop` asserted at loop iteration i=30.
+
+The DUT sees `func_stop='1'` at the cycle where `func_end='1'` simultaneously (last cycle of
+iter2 ts1, cycle 32 relative to trigger). This causes the immediate transition:
+`infinite_loop_run` → `empting_fifo`. `empting_fifo` pops the end_seq token in the same
+cycle; the pipeline continues to flush iteration 3's output (CC×4, DD×5) while the executor
+is already in `wait_start`. `end_sequence` fires at cycle 41; `sequencer_busy` drops at
+cycle 42. `[sim]`
+
+**Iteration naming:** "i=30" is the TB loop variable at which `sync_cmd_stop` is asserted;
+the DUT sees it at cycle 32 relative to trigger because of the timing of when the TB drives
+the signal relative to when the DUT samples it. The transition occurs at the last cycle of
+what the testbench labels iteration 2 (i=2 in the DUT's execution count). `[sim]`
+
+### 6.6 Step path timing (T24)
+
+Same program and F1 as T23. `sync_cmd_step` asserted at the same cycle (cycle 32, `func_end=1`
+simultaneously).
+
+RTL path: `infinite_loop_run` + `func_stop='0'` + `func_step='1'` + `func_end='1'`
+→ `start_func`. In `start_func` the executor pops the next FIFO entry, which is the
+end_seq token. F0 runs normally (ts0×4, ts1×5 for the standard F0 at times=(3,3)).
+`end_sequence` fires at cycle 48; `sequencer_busy` drops at cycle 49. `[sim]`
+
+**Distinction from stop path:** The step path completes one additional F0 execution before
+ending. The stop path skips F0 and terminates immediately after flushing the remaining
+pipeline output. `[sim]`
+
+---
+
+## 7. ADC trigger alignment shifter
+
+### 7.1 Purpose
+
+The `sequencer_aligner_shifter_top` module inserts a programmable delay on bit 12
+(`adc_trigger`) relative to all other output bits. The delay is set by `shift_counter`
+and defaults to 0 after reset (3-stage pipeline matching all other bits). In scan mode
+(Section 7.5), the delay auto-increments after each ADC trigger, sweeping through the
+full range of the SRLC32E shift register. `[rtl]`
+
+### 7.2 Path architecture
+
+The module provides two signal paths from the raw sequencer output (`sequencer_unaligned`)
+to the final output (`sequencer_out`): `[rtl]`
+
+- **Bits 0–11, 13–31 (all bits except `adc_trigger`):** Fixed 3-stage registered pipeline
+  (`sequencer_delay_1` → `sequencer_delay_2` → `sequencer_delay_3`). Delay is always
+  exactly 3 cycles.
+
+- **Bit 12 (`adc_trigger`, parameterised as `start_adc_bit=12`):**
+
+  ```
+  sequencer_in(12)
+    → srl_input_ff        (1 registered stage; added by DISC-005 fix at 1721535)
+    → SRLC32E chain       (tap depth = shift_counter + 1 registered stages)
+    → shift_reg_out_ff    (1 registered stage)
+    → sequencer_out(12)
+  ```
+
+  Total registered stages for bit 12 = **`shift_counter + 3`**.
+
+At `shift_counter = 0`, bit 12 passes through exactly 3 stages — identical to all other
+bits. This is the zero-offset condition established by the DISC-005 fix (`1721535`). Before
+that fix, bit 12 had only 2 stages at `shift_counter = 0`, causing a 1-cycle glitch at
+transitions. `[rtl][sim]`
+
+### 7.3 Delay formula
+
+Net additional delay on `adc_trigger` relative to all other bits:
+
+```
+additional_delay = shift_counter cycles
+
+At 100 MHz (standard single-sequencer clock):    additional_delay = shift_counter × 10 ns
+At 156.25 MHz (6.4 ns variant):         additional_delay ≈ shift_counter × 6.4 ns
+```
+
+At `shift_counter = 0`: additional delay = 0; all 32 bits arrive at `sequencer_out`
+simultaneously. This is the normal operating condition. `[rtl][sim]`
+
+### 7.4 Counter structure
+
+`shift_counter` is an **8-bit counter** (values 0–255): `[rtl]`
+
+- **Increment trigger:** A falling-edge detector on the SRLC32E tap output increments the
+  counter by 1 on each falling edge of bit 12 at the tap, when `en_shift_counter='1'`
+  (i.e. when `enable_conv_shift` is asserted and `sequencer_busy` is high).
+
+- **Reset:** Two independent mechanisms reset `shift_counter` to 0: `[rtl][sim]`
+  - `init_conv_shift` (register `0x390008` bit 0) synchronously resets the counter
+    directly.
+  - `do_reset` (system reset via PGP link-layer reset → `sys_rst`) resets the counter
+    through the `reset` port of `generic_counter_comparator_ce_init`. Confirmed by
+    tracing the full reset chain through `SystemClock.vhd` → `si5342_multiclock_top.vhd`
+    → `REB_v5_base.vhd:1039`, and by T32 simulation. `[rtl][sim]`
+
+- **Wrap:** The counter wraps silently from 255 to 0. The overflow output (`cnt_end`) is
+  left `open` in the instantiation; no interrupt or flag is raised.
+
+- **Maximum delay at 100 MHz:** 255 × 10 ns = **2550 ns**.
+
+### 7.5 Scan mode operation
+
+**Scan mode** is activated by writing `enable_conv_shift='1'` (register `0x390007` bit 0).
+In this mode the shift counter auto-increments on each falling edge of bit 12 at the
+SRLC32E tap output, so each successive ADC conversion fires one clock cycle later than the
+previous one. This is a **calibration sweep**: by running N ADC conversions in scan mode
+and observing which produces the best pixel value, the operator finds the optimal
+`shift_counter` value for normal operation. `[doc][rtl]`
+
+**Software flow:**
+
+1. Issue `do_reset` (or write `init_conv_shift='1'`) to ensure `shift_counter = 0`.
+   `do_reset` alone suffices (confirmed by T32); `init_conv_shift` provides a second
+   independent path to the same state and remains valid but is not strictly required
+   after a system reset.
+2. Write `enable_conv_shift='1'` to enable auto-increment.
+3. Trigger N ADC conversions (one per sequencer run). The nth conversion fires with an
+   additional delay of `(n-1) × T_clk` on `adc_trigger`, as `shift_counter` increments
+   from 0 to N-1.
+4. Write `enable_conv_shift='0'` to freeze the counter at the chosen value.
+
+**Timing asymmetry within a multi-repetition run:** See **DISC-010**. When the shift
+counter is active, the first low-bit-12 timeslice after enabling scan is +1 cycle longer
+than nominal; the second is −1 cycle relative to nominal. This is a natural consequence
+of the auto-increment design and does not affect the sweep result when using one sequencer
+trigger per ADC conversion (the intended flow). `[rtl][sim]`
+
+### 7.6 Normal mode
+
+**Normal mode** (`enable_conv_shift='0'`) is the default operating condition after reset:
+
+- `en_shift_counter` is deasserted; `shift_counter` is frozen.
+- At `shift_counter = 0`, all 32 output bits travel through exactly 3 pipeline stages:
+  the aligner is **fully transparent**.
+- The CCD operator programmes the ADC trigger timing directly into the sequencer output
+  memory by assigning the appropriate timeslice values to `adc_trigger`.
+
+All tests T01–T31 in `tb_sequencer.vhd` operate in normal mode with `shift_counter = 0`.
+The aligner transparency in this condition is implicitly verified by the cycle-exact output
+assertions in all 31 tests and confirmed on hardware. `[sim][hw]`
+
+T31 (`tb_sequencer.vhd`) covers scan mode: it pins the cycle-exact output sequence for a
+2-repetition run with `shift_counter` starting at 0, capturing the DISC-010 timing
+asymmetry. T31 is simulation-only. `[sim]`
+
+T32 (`tb_sequencer.vhd`) is a two-phase discriminating test confirming that `do_reset`
+resets the shift counter: Phase A uses `init_conv_shift` to reset before scan; Phase B
+uses `do_reset` only (no `init_conv_shift`). Both phases assert identical output
+(`T31_EXP`). PASS on both phases confirms that `do_reset` resets `shift_counter` to 0.
+T32 is simulation-only. `[sim]`
+
+### 7.7 Known weaknesses
+
+Two RTL hazards have been identified in `sequencer_aligner_shifter_top.vhd`. Neither
+affects normal operation (Section 7.6) or any of the T01–T32 test results, but both are
+latent risks during scan-mode operation. `[rtl]`
+
+**W1 — SRLC32E has no reset**
+
+`do_reset` clears `srl_input_ff` (the `ff_ce` instance at the SRLC32E input) but does
+**not** flush the SRLC32E shift-register chain. After a reset, the SRLC32E retains its
+pre-reset content for `shift_counter + 1` additional clock cycles.
+
+However, the severity is eliminated in practice. `do_reset` resets `shift_counter` to 0
+(confirmed by T32). At counter=0 the SRLC32E drain period is only 1 cycle, during
+which `en_shift_counter` is 0 (see W2 below), so no spurious falling edge can increment
+the counter. The SRLC32E content is irrelevant because scan mode cannot be active during
+the single drain cycle. No RTL fix is required. `[rtl][sim]`
+
+**W2 — `en_shift_counter` idle hazard**
+
+If `enable_conv_shift` were left asserted across a `do_reset`, stale SRLC32E content (W1)
+could produce spurious falling edges on the tap output during the drain period, potentially
+incrementing `shift_counter`.
+
+However, `do_reset` resets `en_shift_counter` to 0 via the `shift_mode_en_ff` flop (which
+has `reset => reset`), regardless of whether the `enable_conv_shift` register was left set
+before the reset. The register-write path for `enable_conv_shift` cannot re-assert
+`en_shift_counter` until after the reset is released and the host issues a new write. No
+RTL fix is required. `[rtl][sim]`
+
+---
+
+## 8. Sequencer program constraints
+
+This section consolidates all constraints that a valid sequencer program must satisfy.
+Each constraint references the section where the detailed explanation and evidence can
+be found.
+
+### 8.1 Function structure
+
+| # | Constraint | Detail |
+|---|---|---|
+| C1 | Every function must have **≥ 2 timeslices** (i.e., `time_mem[func_id×16 + 1] ≠ 0`). | A single-slice function triggers the executor's end-of-function guard on the *first* slice, causing a silent skip and permanent hang. See **DISC-003** (Appendix C). F0 is additionally constrained by the idle/end_sequence mechanism: **DISC-001** (Appendix C). |
+| C2 | **Minimum timeslice duration = 2** (i.e., all `time_mem` values that define active slices must be ≥ 2). | The time_mem port A pipeline register requires 1 cycle to present valid data. Duration=1 would be consumed before the registered value settles. See **Appendix B.4** (time_mem pipeline register). |
+| C3 | F0 must exist and have ≥ 2 slices. | F0 is executed implicitly during `end_sequence` to produce the idle output pattern. See **Section 5.3**, **DISC-001**. |
+
+### 8.2 Subroutine structure
+
+| # | Constraint | Detail |
+|---|---|---|
+| C4 | A subroutine body must contain **≥ 1 `func_call`** (or equivalent opcode that writes to the FIFO) before the `sub_trailer`. | A body consisting of only a `sub_trailer` hangs the executor — the FIFO never receives a word for the return path. See **DISC-004** (Appendix C). |
+| C5 | `sub_trailer` bits[27:0] are **don't-care**. Only bits[31:28] = `0xE` are checked. | Hardware ignores the payload. Do not rely on these bits for any purpose. See **DISC-006** (Appendix C). |
+
+### 8.3 Nesting depth
+
+| # | Constraint | Detail |
+|---|---|---|
+| C6 | At nesting depth K, the innermost function(s) must have enough total execution time for the extractor to pre-fill the FIFO before the executor exhausts it. | The safe bound depends on function duration and FIFO depth. At K=4 with single-rep single-func_call bodies, the minimum function duration is ~18 cycles. See **DISC-008** (Appendix C). |
+
+### 8.4 Opcodes and addressing
+
+| # | Constraint | Detail |
+|---|---|---|
+| C7 | All opcode fields (bits[31:28]) must be valid (`0x0`–`0xE`). | An invalid opcode causes a permanent `sequencer_busy` hang with no recovery except external reset. See **DISC-007** (Appendix C). |
+| C8 | `sync_cmd_main_addr` and `reg_cmd_start` are **function indices**, not memory addresses. The hardware translates index N to program-word address `N × 4`. | The signal name `main_addr` is misleading — it is an index selecting which of the possible main-function entry points to execute. Only word addresses that are multiples of 4 are reachable as start addresses. `sequencer_start_addr` is not reset by `do_reset` (it is part of the program, not the sequencer state). T25a/T25b verify both trigger paths. `[rtl][sim]` |
+
+### 8.5 Summary of changes from timing-closure work
+
+Constraint **C2** (minimum timeslice duration = 2) is the only new programming constraint
+introduced by the timing-closure modifications (Appendix B). All other constraints existed
+in the original design.
+
+---
+
+## Appendix A: Waveform regression tests
+
+The sequencer testbench (`sequencer_v4/TB/tb_sequencer.vhd`) contains 34 tests that verify
+cycle-exact output behaviour. Each test programs the sequencer memories via the register
+interface, triggers a sequence, and compares the output waveform cycle-by-cycle against a
+hardcoded expected array. Tests marked with a DISC reference exercise a known hazard or
+constraint documented in Appendix C.
+
+### Verification principles
 
 1. **Golden models must use exact durations.** A testbench that applies per-slice correction
    factors (`+1` first slice, `+2` last slice) as ad-hoc adjustments is not verifying the
@@ -539,9 +898,296 @@ when processing `end_sequence`. The minimum working F0 is therefore **two slices
    longer than `time_mem[i]` cycles. If they do, those states represent timing bugs, not
    pipeline features. `[rtl]`
 
+### Test catalogue
+
+| Test | Description | Coverage |
+|------|-------------|----------|
+| T01 | func_call, 2-slice | Baseline waveform (Phase 1a regression) |
+| T02 | func_call, 3-slice | Middle-slice duration = time_mem[i] |
+| T03 | func_call, 4-slice | Two middle slices |
+| T04 | func_call, rep=3, 2-slice | Repetition counter |
+| T05 | func_call + rep=0 skip + end_seq | Zero-rep skip |
+| T06 | ind_func_call (opcode 0x2) | Indirect function ID |
+| T07 | ind_rep_call (opcode 0x3) | Indirect rep count |
+| T08 | ind_all_call (opcode 0x4) | Both indirect |
+| T09 | jump_to_add (0x5), 1-level, rep=1 | Subroutine call |
+| T10 | jump_to_add (0x5), 1-level, rep=2 | Subroutine repetition |
+| T10b | jump_to_add (0x5), non-adjacent body | Non-contiguous subroutine address |
+| T11 | jump_to_add, 2-level nesting | DISC-004 (passing case) |
+| T12 | Non-trivial F0 | Distinct idle output values/times |
+| T13 | Minimum-t1 2-slice function | Last-slice boundary (t1=2) |
+| T14 | Single-slice function hang | DISC-003 confirmation |
+| T15 | 2-level nesting, 1-call inner body | DISC-004 hang confirmation |
+| T16 | Multi-bit slice-boundary transitions | DISC-005 fix verification |
+| T17 | ind_add_jump (0x6), rep=1 | Indirect subroutine address |
+| T18 | ind_rep_jump (0x7), rep=2 | Indirect subroutine rep count |
+| T19 | ind_all_jump (0x8), rep=2 | Both indirect (subroutine) |
+| T20 | jump_to_add, 3-level nesting | Deep nesting |
+| T21 | sub_trailer bits[15:0] don't-care | DISC-006 |
+| T22 | op_code_error | Invalid opcode detection + recovery |
+| T23 | Infinite loop + sync_cmd_stop | Stop command during execution |
+| T24 | Infinite loop + sync_cmd_step | Step command during execution |
+| T25 | Non-zero start address | sync_cmd_start and reg_cmd_start with offset |
+| T26 | rep=0 skip for sub-jump opcodes | Opcodes 0x5/0x6/0x7/0x8 |
+| T27 | rep=0 skip for indirect func_call | Opcodes 0x2/0x3/0x4 |
+| T28 | 16-slice function | Full function depth |
+| T29 | 4-level nesting, minimum body depth | DISC-008 boundary |
+| T30 | Override register + sensor 1 output | Multi-sensor override masking |
+| T31 | ADC alignment shift | enable_conv_shift / shift counter |
+| T32 | do_reset resets shift_counter | Reset clears aligner state |
+
 ---
 
-## 7. Discrepancies
+## Appendix B: April 2026 timing-closure modifications (6.4 ns target)
+
+This section documents the RTL and verification changes made to close timing for
+multi-sequencer configurations at 6.4 ns system clock period (156.25 MHz). The
+sequencer-internal changes (B.1, B.2, B.4, B.5) are in the shared `lsst_reb`
+submodule; the supporting changes (StatusReg pipeline register, command interpreter latch
+fix) are in each board's base module and command interpreter. All modifications preserve the
+cycle-exact output waveform (values and durations from first-output-change through
+end_sequence). Only startup latency (trigger to first-output-change) is affected: it
+increases by +1 cycle (12 → 13 cycles). `[rtl][sim]`
+
+**Strategy:** The approach was iterative: build the target, identify the critical path from
+Vivado timing reports, insert a pipeline register to break that path, validate with
+simulation, then build again to reveal the next bottleneck. Each iteration exposed a new
+worst path that was hidden behind the previous one.
+
+**Coupling between modifications:** Sections B.1–B.4 are tightly coupled and cannot be
+understood in isolation:
+
+1. The **program memory pipeline register** (B.1) breaks the extractor FSM's critical path
+   but adds 1 cycle to every program-word fetch. This widens the timing window in the FIFO
+   race condition (B.3), making starvation more likely for short functions.
+
+2. The **subroutine return shortcut** (B.2) compensates by recovering 1 cycle on every
+   subroutine trailer return, restoring the pre-modification FIFO margin.
+
+3. After these changes, the next critical path revealed by Vivado was the **time_mem port A
+   pipeline register** path (B.4). Registering port A (the lookahead `func_time_in_plus1`)
+   breaks this path at the cost of imposing a minimum timeslice duration of 2.
+
+4. The **readback path fix** (B.5) is largely independent — it breaks a path from the
+   time_mem LUTRAM to the host register-read output that was only visible after the port A
+   pipeline register made the combinational readback output the new worst path.
+
+**Commit map:**
+
+| Commit | Message | Section |
+|--------|---------|---------|
+| `cc9fb85` | (baseline) | — |
+| `1721535` | seq_aligner_shifter: fix DISC-005 glitch by equalising pipeline depth for bit 12 | DISC-005 |
+| `e78337f` | sequencer_v4/Sequencer: replace direct memory ports with req/ack register interface | Prerequisite (register interface refactor) |
+| `dec5f8b` | sequencer_v4/Sequencer: expose op_code_error/op_code_error_add as output ports | DISC-007 (testbench observability) |
+| `2919bb7` | sequencer_v4/extractor: pipeline register on program_memory output | **B.1** |
+| `f1f22f6` | sequencer_v4/extractor: optimize rep_sub trailer return (skip write_fifo state) | **B.2** |
+| `4057719` | sequencer_v4/extractor: add simulation-only debug processes (dbg_proc, dbg_fifo) | **B.4** (supporting) |
+| `148f3bd` | sequencer_v4/function_v3: pipeline register on time_mem port A (plus1 lookahead) | **B.4** (time_mem register) |
+| `fbaa093` | sequencer_v4/function_v3: use registered time_mem output for readback path | **B.5** |
+
+### B.1 Program memory pipeline register
+
+**File:** `sequencer_parameter_extractor_top_v4.vhd`
+
+**Change:** A registered copy of the program memory output (`prog_mem_data_r`) is sampled
+on every rising clock edge. The extractor FSM reads from this register instead of the raw
+LUTRAM (RAMD64E) combinational output. `[rtl]`
+
+```vhdl
+process(clk)
+begin
+  if rising_edge(clk) then
+    prog_mem_data_r <= prog_mem_data;
+  end if;
+end process;
+```
+
+**Motivation:** The pre-modification critical path at 6.4 ns was:
+
+```
+FIFO BRAM output → time_mem LUTRAM (RAMD64E) → function FSM state register
+```
+
+At 100 MHz (10 ns) this path had ~3.5 ns of positive slack. At 156.25 MHz (6.4 ns) it
+violated timing by ~0.3 ns. The pipeline register breaks the path between the LUTRAM
+output and the FSM decode logic, reducing the number of logic levels from ~8 to ~4 per
+half. `[rtl]`
+
+**New FSM state — `fetch`:** The extractor FSM (`parameter_extractor_fsm_v3`) gains a
+`fetch` state inserted between address presentation and data consumption. The state
+machine now performs: `[rtl]`
+
+```
+idle → fetch → decode → [write_fifo | inc_addr | call_sub | ...]
+                              ↑                              |
+                              └──────── fetch ←──────────────┘
+```
+
+Every program word read incurs one additional cycle (the `fetch` wait state) for the
+pipeline register to capture the LUTRAM output. This latency is entirely within the
+extractor pipeline and is invisible at `sequencer_out`. `[rtl][sim]`
+
+**Impact on startup latency:** +1 cycle. Trigger-to-first-change increases from 12 to 13
+cycles (for the baseline N=0 case; deeper nesting adds +2 per level as before per
+DISC-008). `[sim]`
+
+**Impact on output waveform:** None. The output sequence (values and durations) from
+first-change through end_sequence is bit-identical to the pre-modification baseline for
+all 36 regression tests. `[sim]`
+
+### B.2 Subroutine return shortcut (`rep_sub` → `fetch`)
+
+**File:** `parameter_extractor_fsm_v3.vhd`
+
+**Change:** When the subroutine repetition counter expires (`rep_counter_end='1'`), the
+FSM transitions directly from `rep_sub` to `fetch` (with PC incremented past the trailer
+word) instead of going through the intermediate `write_fifo` state. The FIFO write-enable
+is asserted combinationally during `rep_sub` when `rep_counter_end='1'`, since the data
+word (`fifo_param_in`) is already stable at that point. `[rtl]`
+
+**Before:**
+```
+rep_sub → write_fifo → fetch    (2 cycles from counter-expire to next word read)
+```
+
+**After:**
+```
+rep_sub → fetch                  (1 cycle from counter-expire to next word read)
+```
+
+**Motivation:** The pipeline register (Appendix B.1) adds 1 cycle to every program word
+fetch. Without compensation, this widens the window between the extractor's last FIFO
+write and the executor's sampling of `fifo_empty` on the `func_end` pulse. The FIFO race
+condition (Section B.3) would become more likely to trigger for short functions with
+few repetitions. The `rep_sub` shortcut recovers 1 cycle per subroutine trailer return,
+maintaining the pre-modification margin. `[rtl][sim]`
+
+**Impact on output waveform:** None. The saved cycle is entirely within the extractor
+pipeline, before any output is produced. `[sim]`
+
+### B.3 FIFO race condition (background)
+
+The `surf.FifoSync` module uses a **registered `empty` flag** with
+2-cycle latency from write assertion to `empty` deassertion at the read port. The function
+executor (`function_executor_v3`) checks `fifo_empty` only on the single cycle where
+`func_end='1'`. If both events coincide — the extractor writes the next entry, and the
+executor samples `fifo_empty` before the write propagates — the executor sees `empty='1'`
+and hangs permanently in `wait_fifo` (a state that has no timeout or recovery path). `[rtl]`
+
+**Relationship to Section B.1:** The pipeline register increases the total time the
+extractor spends fetching each program word by 1 cycle. For programs where the extractor
+barely finishes writing the next FIFO entry before the executor's `func_end` pulse (the
+"just-in-time" case), this extra cycle could push the write past the sampling window.
+The `rep_sub` shortcut (Section B.2) compensates by saving 1 cycle on the return path,
+keeping the net margin unchanged. `[rtl]`
+
+**Relationship to DISC-008:** DISC-008 documents the same race for deeply nested
+subroutines (N ≥ 4) where the extractor traverses many call/return cycles before writing
+the next FIFO entry. The pipeline register does not worsen DISC-008 because the additional
+fetch cycle applies uniformly to all word reads, including the nested `call_sub` traversals
+that contribute to the nesting overhead. The `rep_sub` shortcut partially improves DISC-008
+by reducing the return path, but the fundamental constraint (K ≥ ⌈N × 5 / T_exec⌉) remains
+valid with slightly tighter constants. `[rtl][sim]`
+
+### B.4 Supporting changes
+
+**Time memory port A pipeline register** (`function_v3.vhd`): The time memory's port A
+output (indexed by FIFO data, used for the `func_time_in_plus1` lookahead) is registered
+as `time_bus_2_int_r`. The function FSM reads from this registered copy for its plus-one
+comparison (`ltOp`). This breaks the critical path from FIFO BRAM through the time_mem
+LUTRAM to the FSM state register. Port B (the runtime `func_time_in` path, indexed by the
+function FSM's own counter) is left combinational to preserve cycle-exact timeslice
+durations. `[rtl][sim]`
+
+**Constraint:** Minimum timeslice duration is now 2 (was 1). Duration=1 timeslices would
+require the registered port A value to be valid on the same cycle it is written — which
+the pipeline register delays by one cycle. No production sequencer programs use duration=1.
+Regression test T13 was updated to test the new boundary (t1=2). `[rtl][sim]`
+
+**StatusReg pipeline register** (board base module, e.g. `REB_v5_base.vhd`): A registered copy of the sequencer
+status register output (`StatusReg_r`) breaks a secondary timing path between the
+sequencer's combinational status outputs and the register-read multiplexer in the base
+module. This path was not on the sequencer's critical path but contributed to timing
+pressure in the 3-sequencer configuration. `[rtl]`
+
+**Command interpreter latch fix** (board command interpreter, e.g. `REB_v5_cmd_interpreter.vhd`): The `seq_wait` signal
+was inferred as a latch (assigned in only one branch of a combinational process). Fixed
+by adding an explicit default assignment. This is a correctness fix found during timing
+review; it does not affect timing directly. `[rtl]`
+
+**Debug process pragma guards** (`parameter_extractor_fsm_v3.vhd`,
+`sequencer_parameter_extractor_top_v4.vhd`): Two debug processes (`dbg_proc`, `dbg_fifo`)
+that read the FIFO output port — valid in simulation but illegal in synthesis — are wrapped
+in `-- pragma translate_off` / `-- pragma translate_on`. This allows the same source file
+to serve both simulation and synthesis without maintaining separate copies. `[rtl]`
+
+**Testbench auto-detect latency** (`tb_sequencer.vhd`): Tests T23, T24, T30B, T31, T32A,
+and T32B were rewritten to detect the first output change dynamically rather than using a
+hardcoded cycle offset. This makes the testbench tolerant of startup-latency changes (such
+as the +1 cycle from the pipeline register) while still asserting cycle-exact output
+durations. Stop/step commands (T23, T24) are now timed relative to first-change rather
+than to an absolute cycle count. `[sim]`
+
+### B.5 Time memory readback path fix
+
+**File:** `function_v3.vhd`
+
+**Change:** The host-facing readback output `time_mem_out_2` is wired to the registered
+copy of the time memory port A output (`time_bus_2_int_r`) rather than the raw LUTRAM
+combinational output. `[rtl]`
+
+```vhdl
+time_mem_out_2 <= time_bus_2_int_r;   -- registered copy (1-cycle old)
+```
+
+**Motivation:** After the port A pipeline register was added (Appendix B.4, time_mem
+pipeline register), the raw LUTRAM output still fed the readback path. Vivado cannot
+statically prove that the sequencer is idle during host register reads, so it reports a
+combinational path from the FIFO BRAM output (which drives the time_mem write address
+via `time_add_mux`) through the LUTRAM to `reg_rd_data_reg`. This path had only +0.066 ns
+slack in build #2. `[rtl]`
+
+**Correctness argument:** The register interface protocol issues the address in the IDLE
+cycle and captures the read data in the RESPOND cycle (2 cycles later). The pipeline
+register `time_bus_2_int_r` captures the LUTRAM output on the cycle after the address is
+presented, so by the time RESPOND samples `time_mem_out_2`, the registered value has been
+stable for a full cycle. The sequencer is guaranteed idle during register reads (hardware
+protocol enforced by `sequencer_busy` gating in the cmd interpreter). `[rtl]`
+
+**Impact on output waveform:** None. This signal is only read by the host register
+interface; the runtime datapath uses `time_bus_2_int` (port B, unregistered) and
+`time_bus_2_int_r` (port A, registered) directly within the function FSM. `[rtl][sim]`
+
+### B.6 Representative build results
+
+Results below are representative of each RTL iteration and illustrate how each change
+shifted the critical path. Absolute WNS values vary between builds due to Vivado's
+non-deterministic placement and routing.
+
+| Target | Clock | Sequencers | WNS | Critical path | Strategy |
+|--------|-------|------------|-----|---------------|----------|
+| `REB_v5_6p4ns` (1-seq) | 6.4 ns | 1 | +0.137 ns | (not recorded) | `Performance_Explore` |
+| `REB_v5_6p4ns_3_seq` build #1 | 6.4 ns | 3 | +0.089 ns | FIFO BRAM → time_mem LUTRAM → `func_time_add_plus1_reg` | `Performance_Explore` |
+| `REB_v5_6p4ns_3_seq` build #2 | 6.4 ns | 3 | +0.066 ns | FIFO BRAM → time_mem LUTRAM port A → `reg_rd_data_reg` | `Performance_Explore` |
+| `REB_v5_6p4ns_3_seq` build #3 | 6.4 ns | 3 | +0.126 ns | `pgpRemData` → `RstOut` (fo=8579) → `reg_rd_data_reg` | `Performance_Explore` |
+
+The 1-sequencer build was validated on hardware with functional testing (correct data
+volume, no hangs). Dedicated sensor-level testing is required to fully validate the
+modified sequencer code. `[hw]`
+
+Build #3 represents the final sequencer RTL. The sequencer's worst path is the function FSM (FIFO BRAM →
+time_mem port B → CARRY4 chain → state register) at +0.182 ns. Registering the runtime
+time_mem output (port B) would change the output waveform by adding 1 cycle to every
+timeslice duration and is therefore rejected. This represents the fundamental architectural
+timing floor for the current sequencer design. `[rtl]`
+
+The final sequencer RTL (build #3) also meets timing in the GREB_v2 and WREB_v4
+targets at the same clock period.
+
+---
+
+## Appendix C: Discrepancies
 
 Discrepancies between sources are recorded here. Each entry notes the conflicting claims,
 their sources, a hypothesis for the cause, and the resolution status.
@@ -987,43 +1633,6 @@ times=(3,5): K ≥ ⌈N × 5/8⌉. `[sim][rtl]`
 
 ---
 
-### DISC-009 — `sync_cmd_main_addr` and `reg_cmd_start` are multipliers, not direct program-word indices
-
-**Claim A (implicit) `[doc]`:** The `main_addr` field of the `sync_cmd_start` command and the
-`regDataWr[4:0]` field of the `reg_cmd_start` register write select the starting 32-bit word
-address in `prog_mem` directly.
-
-**Claim B `[rtl]`:** The address presented to the extractor is not `main_addr` directly.
-In `Sequencer.vhd`:
-
-```vhdl
-sequencer_start_addr <= "000" & main_addr & "00";
-```
-
-`main_addr` (5 bits) is concatenated with **two trailing zero bits**, producing a 10-bit
-program-word address equal to `main_addr × 4`. The same applies to `reg_cmd_start`:
-`regDataWr[4:0]` is the same 5-bit field, also shifted left by 2. The resulting address is
-a 32-bit word index into `prog_mem` (not a byte address — `prog_mem` is 32 bits wide).
-
-**Consequence:** To start execution at 32-bit program word `W`, write `W/4` into `main_addr`
-or `regDataWr[4:0]`. Equivalently, to use start index `idx`, place the first instruction at
-`prog_mem` word `idx × 4`. Only word addresses that are multiples of 4 can be specified as
-entry points; words at non-aligned positions are unreachable as start addresses. `[rtl][sim]`
-
-**Secondary finding:** `sequencer_start_addr` has **no reset branch** in `Sequencer.vhd` — it
-persists across `do_reset`. This is harmless in normal operation because the extractor only
-samples it on `start_sequence='1'`, but it means test infrastructure must always write a
-correct start address before triggering, even for tests that use addr=0. `[rtl][sim]`
-
-**Testbench:** T25a (`sync_cmd_start`, `main_addr=1`, program at word 4) and T25b
-(`reg_cmd_start`, `regDataWr[4:0]=2`, program at word 8) verify both trigger paths.
-Both pass cycle-exact in simulation. `[sim]`
-
-**Resolution:** Accepted/Documented. The `main_addr` / `regDataWr[4:0]` field is a
-multiplier-of-4 index, not a direct word address. `[rtl][sim]`
-
----
-
 ### DISC-010 — ADC alignment shift counter: bit-12 timing asymmetry across repetitions
 
 **Background:** The `sequencer_aligner_shifter_top` module contains an SRLC32E shift
@@ -1068,20 +1677,6 @@ No RTL change warranted. `[sim]`
 
 ---
 
-### DISC-011 — `init_conv_shift` precondition — no discrepancy
-
-An early investigation hypothesised that `do_reset` does not reset `shift_counter`, which
-would require an explicit `init_conv_shift` pulse before enabling scan mode. This was
-refuted by tracing the full reset chain through `REB_v5_base.vhd`: `do_reset` propagates
-through `sys_rst` to `sequencer_aligner_shifter_top`, resetting `shift_counter` to 0 via
-`shift_mode_en_ff`. Confirmed by T32 simulation (`tb_sequencer.vhd`). `[rtl][sim]`
-
-**Resolution:** No discrepancy. `do_reset` is sufficient to reset the shift counter.
-`init_conv_shift` is redundant for this purpose but still functions as an explicit counter
-reset if needed during operation. No programming constraint applies.
-
----
-
 ### DISC-012 — Infinite-loop restart omits `veto_out`, shortening ts0 by 1 cycle
 
 **Claim A (implicit) `[doc]`:** In infinite-loop mode, every iteration of the function
@@ -1089,7 +1684,7 @@ produces the same output waveform at `sequencer_out`.
 
 **Claim B `[rtl][sim]`:** The first iteration's ts0 appears for `time_mem[0] + 1` cycles,
 but all subsequent iterations' ts0 appears for only `time_mem[0]` cycles. The loop output
-is not strictly periodic. See Section 8.4 for detailed timing.
+is not strictly periodic. See Section 6.4 for detailed timing.
 
 **Root cause `[rtl]`:** In `function_executor_v3`, the `infinite_loop_restart` state issues
 `func_start='1'` without asserting `veto_out`. Normal function-to-function transitions
@@ -1114,561 +1709,3 @@ infinite-loop timing. The asymmetry is acceptable for production use.
 
 ---
 
-## 8. Infinite-loop mechanism
-
-### 8.1 Overview
-
-The sequencer supports an infinite-loop execution mode activated by the `inf_loop` bit in
-the FIFO word. When active, the executor repeats the same function indefinitely instead of
-advancing to the next FIFO entry. The loop can be stopped or stepped via two control inputs
-(`func_stop`, `func_step`), which are driven by either the sync commands
-(`sync_cmd_stop`, `sync_cmd_step`) or the register commands (`reg_cmd_stop`,
-`reg_cmd_step`) at the top level. `[rtl]`
-
-Infinite-loop mode is **simulation-only** in the current testbench: the stop/step inputs
-cannot be driven from an external ILA trigger, so hardware capture (hw_compare.py) is not
-applicable. `[sim]`
-
-### 8.2 FIFO word encoding
-
-The `inf_loop` flag occupies **bit [23]** of the resolved 32-bit FIFO word:
-
-```
-[31:28] prog_end_opcode   (0xF for end_sequence, 0x0 for all func_call variants)
-[27:24] func_id           (F0–F15)
-[23]    inf_loop          (1 = infinite loop; 0 = normal single/rep execution)
-[22:0]  rep_count         (ignored when inf_loop=1)
-```
-
-A `func_call` with `inf_loop=1` is encoded as `0x11800000` for F1 (func_id=1, inf_loop=1,
-rep_count=0). The parameter extractor sets this bit from bit [23] of the program word for
-opcode 0x1; the bit is preserved through the FIFO unchanged. `[rtl]`
-
-### 8.3 Executor FSM states
-
-The function executor (`function_executor_v3`) has the following additional states beyond
-those listed in Section 3.3: `[rtl]`
-
-```
-infinite_loop_run       running in infinite-loop mode; watching func_end, func_stop, func_step
-infinite_loop_restart   (1 cycle) re-issues func_start to restart the same function
-empting_fifo            draining FIFO after stop command; pops end_seq token
-```
-
-**State transitions:**
-
-- In `start_func`: if `fifo_param_out[23] = '1'` (inf_loop), executor enters `infinite_loop_run`
-  instead of `func_exe`.
-- In `infinite_loop_run` + `func_end='1'` + `func_stop='0'` + `func_step='0'`:
-  → `infinite_loop_restart` (loop continues).
-- In `infinite_loop_run` + `func_end='1'` + `func_stop='1'`:
-  → `empting_fifo` (stop path).
-- In `infinite_loop_run` + `func_end='1'` + `func_stop='0'` + `func_step='1'`:
-  → `start_func` (step path — pops next FIFO entry, which is end_seq).
-- In `empting_fifo`: pops FIFO entries until `prog_end_opcode = '1111'` (end_seq token) is
-  found; then transitions to `wait_start` via the normal end_sequence path.
-
-**`sequencer_busy`:** Asserted throughout `infinite_loop_run`, `infinite_loop_restart`, and
-`empting_fifo`. Drops on the cycle after `end_sequence` fires, as for normal execution. `[rtl]`
-
-### 8.4 `infinite_loop_restart` timing anomaly
-
-When transitioning from `infinite_loop_restart` back to the start of the function, the
-executor issues `func_start='1'` **without** asserting `veto_out`. `[rtl]`
-
-In normal function-to-function transitions the `veto_out` signal causes the 2-cycle
-`out_ce` freeze (Section 3.5), holding the previous function's last-slice value in
-`output_reg` during the boundary. Without this freeze, `output_reg` begins capturing the
-restarted function's ts0 value one cycle earlier.
-
-**Consequence:** ts0 of every loop iteration except the very first appears at `sequencer_out`
-for **one fewer cycle** than the first-iteration ts0:
-
-| ts0 occurrence | Duration at `sequencer_out` |
-|---|---|
-| First iteration (normal `start_func`) | `time_mem[0] + 1` cycles |
-| Subsequent iterations (`infinite_loop_restart`) | `time_mem[0]` cycles |
-
-For F1 with `time_mem[0x10]=3`: ts0 appears for 4 cycles on iteration 1, then 3 cycles on
-all subsequent iterations. See **DISC-012** for root cause analysis and fix disposition.
-`[sim]`
-
-### 8.5 Stop path timing (T23)
-
-TB program: `[0] 0x11800000` (func_call F1, inf_loop=1), `[1] 0xF0000000` (end_seq).
-F1: ts0=0xCC (time=3), ts1=0xDD (time=5). `sync_cmd_stop` asserted at loop iteration i=30.
-
-The DUT sees `func_stop='1'` at the cycle where `func_end='1'` simultaneously (last cycle of
-iter2 ts1, cycle 32 relative to trigger). This causes the immediate transition:
-`infinite_loop_run` → `empting_fifo`. `empting_fifo` pops the end_seq token in the same
-cycle; the pipeline continues to flush iteration 3's output (CC×4, DD×5) while the executor
-is already in `wait_start`. `end_sequence` fires at cycle 41; `sequencer_busy` drops at
-cycle 42. `[sim]`
-
-**Iteration naming:** "i=30" is the TB loop variable at which `sync_cmd_stop` is asserted;
-the DUT sees it at cycle 32 relative to trigger because of the timing of when the TB drives
-the signal relative to when the DUT samples it. The transition occurs at the last cycle of
-what the testbench labels iteration 2 (i=2 in the DUT's execution count). `[sim]`
-
-### 8.6 Step path timing (T24)
-
-Same program and F1 as T23. `sync_cmd_step` asserted at the same cycle (cycle 32, `func_end=1`
-simultaneously).
-
-RTL path: `infinite_loop_run` + `func_stop='0'` + `func_step='1'` + `func_end='1'`
-→ `start_func`. In `start_func` the executor pops the next FIFO entry, which is the
-end_seq token. F0 runs normally (ts0×4, ts1×5 for the standard F0 at times=(3,3)).
-`end_sequence` fires at cycle 48; `sequencer_busy` drops at cycle 49. `[sim]`
-
-**Distinction from stop path:** The step path completes one additional F0 execution before
-ending. The stop path skips F0 and terminates immediately after flushing the remaining
-pipeline output. `[sim]`
-
----
-
-## 9. ADC trigger alignment shifter
-
-### 9.1 Purpose
-
-The `sequencer_aligner_shifter_top` module inserts a programmable delay on bit 12
-(`adc_trigger`) relative to all other output bits. The delay is set by `shift_counter`
-and defaults to 0 after reset (3-stage pipeline matching all other bits). In scan mode
-(Section 9.5), the delay auto-increments after each ADC trigger, sweeping through the
-full range of the SRLC32E shift register. `[rtl]`
-
-### 9.2 Path architecture
-
-The module provides two signal paths from the raw sequencer output (`sequencer_unaligned`)
-to the final output (`sequencer_out`): `[rtl]`
-
-- **Bits 0–11, 13–31 (all bits except `adc_trigger`):** Fixed 3-stage registered pipeline
-  (`sequencer_delay_1` → `sequencer_delay_2` → `sequencer_delay_3`). Delay is always
-  exactly 3 cycles.
-
-- **Bit 12 (`adc_trigger`, parameterised as `start_adc_bit=12`):**
-
-  ```
-  sequencer_in(12)
-    → srl_input_ff        (1 registered stage; added by DISC-005 fix at 1721535)
-    → SRLC32E chain       (tap depth = shift_counter + 1 registered stages)
-    → shift_reg_out_ff    (1 registered stage)
-    → sequencer_out(12)
-  ```
-
-  Total registered stages for bit 12 = **`shift_counter + 3`**.
-
-At `shift_counter = 0`, bit 12 passes through exactly 3 stages — identical to all other
-bits. This is the zero-offset condition established by the DISC-005 fix (`1721535`). Before
-that fix, bit 12 had only 2 stages at `shift_counter = 0`, causing a 1-cycle glitch at
-transitions. `[rtl][sim]`
-
-### 9.3 Delay formula
-
-Net additional delay on `adc_trigger` relative to all other bits:
-
-```
-additional_delay = shift_counter cycles
-
-At 100 MHz (REB_v5 standard target):    additional_delay = shift_counter × 10 ns
-At 156.25 MHz (6.4 ns variant):         additional_delay ≈ shift_counter × 6.4 ns
-```
-
-At `shift_counter = 0`: additional delay = 0; all 32 bits arrive at `sequencer_out`
-simultaneously. This is the normal operating condition. `[rtl][sim]`
-
-### 9.4 Counter structure
-
-`shift_counter` is an **8-bit counter** (values 0–255): `[rtl]`
-
-- **Increment trigger:** A falling-edge detector on the SRLC32E tap output increments the
-  counter by 1 on each falling edge of bit 12 at the tap, when `en_shift_counter='1'`
-  (i.e. when `enable_conv_shift` is asserted and `sequencer_busy` is high).
-
-- **Reset:** Two independent mechanisms reset `shift_counter` to 0: `[rtl][sim]`
-  - `init_conv_shift` (register `0x390008` bit 0) synchronously resets the counter
-    directly.
-  - `do_reset` (system reset via PGP link-layer reset → `sys_rst`) resets the counter
-    through the `reset` port of `generic_counter_comparator_ce_init`.
-
-  *Original note (superseded):* "`do_reset` does NOT reset the counter. See DISC-011."
-  That claim was based on incomplete RTL tracing and has been refuted by simulation
-  (T32, `sequencer_tb` `d4d238b`) and confirmed by tracing the full reset chain through
-  `SystemClock.vhd` → `si5342_multiclock_top.vhd` → `REB_v5_base.vhd:1039`. See
-  DISC-011 for the full analysis.
-
-- **Wrap:** The counter wraps silently from 255 to 0. The overflow output (`cnt_end`) is
-  left `open` in the instantiation; no interrupt or flag is raised.
-
-- **Maximum delay at 100 MHz:** 255 × 10 ns = **2550 ns**.
-
-### 9.5 Scan mode operation
-
-**Scan mode** is activated by writing `enable_conv_shift='1'` (register `0x390007` bit 0).
-In this mode the shift counter auto-increments on each falling edge of bit 12 at the
-SRLC32E tap output, so each successive ADC conversion fires one clock cycle later than the
-previous one. This is a **calibration sweep**: by running N ADC conversions in scan mode
-and observing which produces the best pixel value, the operator finds the optimal
-`shift_counter` value for normal operation. `[doc][rtl]`
-
-**Software flow:**
-
-1. Issue `do_reset` (or write `init_conv_shift='1'`) to ensure `shift_counter = 0`.
-   *Original note (superseded):* "`init_conv_shift` is required — see DISC-011."
-   T32 confirmed that `do_reset` alone suffices; `init_conv_shift` provides a second
-   independent path to the same state and remains valid but is not strictly required
-   after a system reset.
-2. Write `enable_conv_shift='1'` to enable auto-increment.
-3. Trigger N ADC conversions (one per sequencer run). The nth conversion fires with an
-   additional delay of `(n-1) × T_clk` on `adc_trigger`, as `shift_counter` increments
-   from 0 to N-1.
-4. Write `enable_conv_shift='0'` to freeze the counter at the chosen value.
-
-**Timing asymmetry within a multi-repetition run:** See **DISC-010**. When the shift
-counter is active, the first low-bit-12 timeslice after enabling scan is +1 cycle longer
-than nominal; the second is −1 cycle relative to nominal. This is a natural consequence
-of the auto-increment design and does not affect the sweep result when using one sequencer
-trigger per ADC conversion (the intended flow). `[rtl][sim]`
-
-### 9.6 Normal mode
-
-**Normal mode** (`enable_conv_shift='0'`) is the default operating condition after reset:
-
-- `en_shift_counter` is deasserted; `shift_counter` is frozen.
-- At `shift_counter = 0`, all 32 output bits travel through exactly 3 pipeline stages:
-  the aligner is **fully transparent**.
-- The CCD operator programmes the ADC trigger timing directly into the sequencer output
-  memory by assigning the appropriate timeslice values to `adc_trigger`.
-
-All tests T01–T31 in `tb_sequencer.vhd` operate in normal mode with `shift_counter = 0`.
-The aligner transparency in this condition is implicitly verified by the cycle-exact output
-assertions in all 31 tests and confirmed on hardware. `[sim][hw]`
-
-T31 (`tb_sequencer.vhd`) covers scan mode: it pins the cycle-exact output sequence for a
-2-repetition run with `shift_counter` starting at 0, capturing the DISC-010 timing
-asymmetry. T31 is simulation-only. `[sim]`
-
-T32 (`tb_sequencer.vhd`) is a two-phase discriminating test for DISC-011: Phase A uses
-`init_conv_shift` to reset the counter before scan; Phase B uses `do_reset` only (no
-`init_conv_shift`). Both phases assert identical output (`T31_EXP`). PASS on both phases
-confirms that `do_reset` resets `shift_counter` to 0. T32 is simulation-only. `[sim]`
-
-### 9.7 Known weaknesses
-
-Two RTL hazards have been identified in `sequencer_aligner_shifter_top.vhd`. Neither
-affects normal operation (Section 9.6) or any of the T01–T32 test results, but both are
-latent risks during scan-mode operation. `[rtl]`
-
-**W1 — SRLC32E has no reset**
-
-`do_reset` clears `srl_input_ff` (the `ff_ce` instance at the SRLC32E input) but does
-**not** flush the SRLC32E shift-register chain. After a reset, the SRLC32E retains its
-pre-reset content for `shift_counter + 1` additional clock cycles.
-
-However, the severity is eliminated in practice. `do_reset` resets `shift_counter` to 0
-(confirmed by T32 / DISC-011). At counter=0 the SRLC32E drain period is only 1 cycle, during
-which `en_shift_counter` is 0 (see W2 below), so no spurious falling edge can increment
-the counter. The SRLC32E content is irrelevant because scan mode cannot be active during
-the single drain cycle. No RTL fix is required. `[rtl][sim]`
-
-**W2 — `en_shift_counter` idle hazard**
-
-If `enable_conv_shift` were left asserted across a `do_reset`, stale SRLC32E content (W1)
-could produce spurious falling edges on the tap output during the drain period, potentially
-incrementing `shift_counter`.
-
-However, `do_reset` resets `en_shift_counter` to 0 via the `shift_mode_en_ff` flop (which
-has `reset => reset`), regardless of whether the `enable_conv_shift` register was left set
-before the reset. The register-write path for `enable_conv_shift` cannot re-assert
-`en_shift_counter` until after the reset is released and the host issues a new write. No
-RTL fix is required. `[rtl][sim]`
-
----
-
-## 10. Sequencer program constraints
-
-This section consolidates all constraints that a valid sequencer program must satisfy.
-Each constraint references the section where the detailed explanation and evidence can
-be found.
-
-### 10.1 Function structure
-
-| # | Constraint | Detail |
-|---|---|---|
-| C1 | Every function must have **≥ 2 timeslices** (i.e., `time_mem[func_id×16 + 1] ≠ 0`). | A single-slice function triggers the executor's end-of-function guard on the *first* slice, causing a silent skip and permanent hang. See **DISC-003** (Section 7). F0 is additionally constrained by the idle/end_sequence mechanism: **DISC-001** (Section 7). |
-| C2 | **Minimum timeslice duration = 2** (i.e., all `time_mem` values that define active slices must be ≥ 2). | The time_mem port A pipeline register requires 1 cycle to present valid data. Duration=1 would be consumed before the registered value settles. See **Section 11.4** (time_mem pipeline register). |
-| C3 | F0 must exist and have ≥ 2 slices. | F0 is executed implicitly during `end_sequence` to produce the idle output pattern. See **Section 5.3**, **DISC-001**. |
-
-### 10.2 Subroutine structure
-
-| # | Constraint | Detail |
-|---|---|---|
-| C4 | A subroutine body must contain **≥ 1 `func_call`** (or equivalent opcode that writes to the FIFO) before the `sub_trailer`. | A body consisting of only a `sub_trailer` hangs the executor — the FIFO never receives a word for the return path. See **DISC-004** (Section 7). |
-| C5 | `sub_trailer` bits[27:0] are **don't-care**. Only bits[31:28] = `0xE` are checked. | Hardware ignores the payload. Do not rely on these bits for any purpose. See **DISC-006** (Section 7). |
-
-### 10.3 Nesting depth
-
-| # | Constraint | Detail |
-|---|---|---|
-| C6 | At nesting depth K, the innermost function(s) must have enough total execution time for the extractor to pre-fill the FIFO before the executor exhausts it. | The safe bound depends on function duration and FIFO depth. At K=4 with single-rep single-func_call bodies, the minimum function duration is ~18 cycles. See **DISC-008** (Section 7). |
-
-### 10.4 Opcodes and addressing
-
-| # | Constraint | Detail |
-|---|---|---|
-| C7 | All opcode fields (bits[31:28]) must be valid (`0x0`–`0xE`). | An invalid opcode causes a permanent `sequencer_busy` hang with no recovery except external reset. See **DISC-007** (Section 7). |
-| C8 | `sync_cmd_main_addr` and `reg_cmd_start` values are **multiplied by 4** to produce the program-word address. The result is a 32-bit word index into `prog_mem`, not a byte address. | Value N starts execution at 32-bit word `N × 4`. See **DISC-009** (Section 7). |
-
-### 10.5 Summary of changes from timing-closure work
-
-Constraint **C2** (minimum timeslice duration = 2) is the only new programming constraint
-introduced by the timing-closure modifications (Section 11). All other constraints existed
-in the original design.
-
----
-
-## 11. Timing-closure modifications (6.4 ns target)
-
-This section documents the RTL and verification changes made to close timing for the
-`REB_v5_6p4ns_3_seq` target (156.25 MHz, 3 sequencers). All modifications preserve the
-cycle-exact output waveform (values and durations from first-output-change through
-end_sequence). Only startup latency (trigger to first-output-change) is affected: it
-increases by +1 cycle (12 → 13 cycles). `[rtl][sim]`
-
-**Strategy:** The approach was iterative: build the target, identify the critical path from
-Vivado timing reports, insert a pipeline register to break that path, validate with
-simulation, then build again to reveal the next bottleneck. Each iteration exposed a new
-worst path that was hidden behind the previous one.
-
-**Coupling between modifications:** Sections 11.1–11.4 are tightly coupled and cannot be
-understood in isolation:
-
-1. The **program memory pipeline register** (11.1) breaks the extractor FSM's critical path
-   but adds 1 cycle to every program-word fetch. This widens the timing window in the FIFO
-   race condition (11.3), making starvation more likely for short functions.
-
-2. The **subroutine return shortcut** (11.2) compensates by recovering 1 cycle on every
-   subroutine trailer return, restoring the pre-modification FIFO margin.
-
-3. After these changes, the next critical path revealed by Vivado was the **time_mem port A
-   pipeline register** path (11.4). Registering port A (the lookahead `func_time_in_plus1`)
-   breaks this path at the cost of imposing a minimum timeslice duration of 2.
-
-4. The **readback path fix** (11.5) is largely independent — it breaks a path from the
-   time_mem LUTRAM to the host register-read output that was only visible after the port A
-   pipeline register made the combinational readback output the new worst path.
-
-**Validation methodology:** Each RTL change was validated against two testbenches before
-proceeding to the next build:
-- `sequencer_tb` (38 tests): confirms cycle-exact output waveform preservation.
-- `reg_interface_tb` (14 tests): confirms register read/write correctness.
-
-**Commit map (`lsst_reb` branch `reg-interface`, base = `cc9fb85`):**
-
-| Commit | Message | Section |
-|--------|---------|---------|
-| `1721535` | seq_aligner_shifter: fix DISC-005 glitch by equalising pipeline depth for bit 12 | DISC-005 |
-| `e78337f` | sequencer_v4/Sequencer: replace direct memory ports with req/ack register interface | Prerequisite (register interface refactor) |
-| `dec5f8b` | sequencer_v4/Sequencer: expose op_code_error/op_code_error_add as output ports | DISC-007 (testbench observability) |
-| `2919bb7` | sequencer_v4/extractor: pipeline register on program_memory output | **11.1** |
-| `f1f22f6` | sequencer_v4/extractor: optimize rep_sub trailer return (skip write_fifo state) | **11.2** |
-| `4057719` | sequencer_v4/extractor: add simulation-only debug processes (dbg_proc, dbg_fifo) | **11.4** (supporting) |
-| `148f3bd` | sequencer_v4/function_v3: pipeline register on time_mem port A (plus1 lookahead) | **11.4** (time_mem register) |
-| `fbaa093` | sequencer_v4/function_v3: use registered time_mem output for readback path | **11.5** |
-
-### 11.1 Program memory pipeline register
-
-**File:** `sequencer_parameter_extractor_top_v4.vhd`
-
-**Change:** A registered copy of the program memory output (`prog_mem_data_r`) is sampled
-on every rising clock edge. The extractor FSM reads from this register instead of the raw
-LUTRAM (RAMD64E) combinational output. `[rtl]`
-
-```vhdl
-process(clk)
-begin
-  if rising_edge(clk) then
-    prog_mem_data_r <= prog_mem_data;
-  end if;
-end process;
-```
-
-**Motivation:** The pre-modification critical path at 6.4 ns was:
-
-```
-FIFO BRAM output → time_mem LUTRAM (RAMD64E) → function FSM state register
-```
-
-At 100 MHz (10 ns) this path had ~3.5 ns of positive slack. At 156.25 MHz (6.4 ns) it
-violated timing by ~0.3 ns. The pipeline register breaks the path between the LUTRAM
-output and the FSM decode logic, reducing the number of logic levels from ~8 to ~4 per
-half. `[rtl]`
-
-**New FSM state — `fetch`:** The extractor FSM (`parameter_extractor_fsm_v3`) gains a
-`fetch` state inserted between address presentation and data consumption. The state
-machine now performs: `[rtl]`
-
-```
-idle → fetch → decode → [write_fifo | inc_addr | call_sub | ...]
-                              ↑                              |
-                              └──────── fetch ←──────────────┘
-```
-
-Every program word read incurs one additional cycle (the `fetch` wait state) for the
-pipeline register to capture the LUTRAM output. This latency is entirely within the
-extractor pipeline and is invisible at `sequencer_out`. `[rtl][sim]`
-
-**Impact on startup latency:** +1 cycle. Trigger-to-first-change increases from 12 to 13
-cycles (for the baseline N=0 case; deeper nesting adds +2 per level as before per
-DISC-008). `[sim]`
-
-**Impact on output waveform:** None. The output sequence (values and durations) from
-first-change through end_sequence is bit-identical to the pre-modification baseline for
-all 36 regression tests. `[sim]`
-
-### 11.2 Subroutine return shortcut (`rep_sub` → `fetch`)
-
-**File:** `parameter_extractor_fsm_v3.vhd`
-
-**Change:** When the subroutine repetition counter expires (`rep_counter_end='1'`), the
-FSM transitions directly from `rep_sub` to `fetch` (with PC incremented past the trailer
-word) instead of going through the intermediate `write_fifo` state. The FIFO write-enable
-is asserted combinationally during `rep_sub` when `rep_counter_end='1'`, since the data
-word (`fifo_param_in`) is already stable at that point. `[rtl]`
-
-**Before:**
-```
-rep_sub → write_fifo → fetch    (2 cycles from counter-expire to next word read)
-```
-
-**After:**
-```
-rep_sub → fetch                  (1 cycle from counter-expire to next word read)
-```
-
-**Motivation:** The pipeline register (Section 11.1) adds 1 cycle to every program word
-fetch. Without compensation, this widens the window between the extractor's last FIFO
-write and the executor's sampling of `fifo_empty` on the `func_end` pulse. The FIFO race
-condition (Section 11.3) would become more likely to trigger for short functions with
-few repetitions. The `rep_sub` shortcut recovers 1 cycle per subroutine trailer return,
-maintaining the pre-modification margin. `[rtl][sim]`
-
-**Impact on output waveform:** None. The saved cycle is entirely within the extractor
-pipeline, before any output is produced. `[sim]`
-
-### 11.3 FIFO race condition (background)
-
-The `FifoSync` module (from `surf`, read-only) uses a **registered `empty` flag** with
-2-cycle latency from write assertion to `empty` deassertion at the read port. The function
-executor (`function_executor_v3`) checks `fifo_empty` only on the single cycle where
-`func_end='1'`. If both events coincide — the extractor writes the next entry, and the
-executor samples `fifo_empty` before the write propagates — the executor sees `empty='1'`
-and hangs permanently in `wait_fifo` (a state that has no timeout or recovery path). `[rtl]`
-
-**Relationship to Section 11.1:** The pipeline register increases the total time the
-extractor spends fetching each program word by 1 cycle. For programs where the extractor
-barely finishes writing the next FIFO entry before the executor's `func_end` pulse (the
-"just-in-time" case), this extra cycle could push the write past the sampling window.
-The `rep_sub` shortcut (Section 11.2) compensates by saving 1 cycle on the return path,
-keeping the net margin unchanged. `[rtl]`
-
-**Relationship to DISC-008:** DISC-008 documents the same race for deeply nested
-subroutines (N ≥ 4) where the extractor traverses many call/return cycles before writing
-the next FIFO entry. The pipeline register does not worsen DISC-008 because the additional
-fetch cycle applies uniformly to all word reads, including the nested `call_sub` traversals
-that contribute to the nesting overhead. The `rep_sub` shortcut partially improves DISC-008
-by reducing the return path, but the fundamental constraint (K ≥ ⌈N × 5 / T_exec⌉) remains
-valid with slightly tighter constants. `[rtl][sim]`
-
-### 11.4 Supporting changes
-
-**Time memory port A pipeline register** (`function_v3.vhd`): The time memory's port A
-output (indexed by FIFO data, used for the `func_time_in_plus1` lookahead) is registered
-as `time_bus_2_int_r`. The function FSM reads from this registered copy for its plus-one
-comparison (`ltOp`). This breaks the critical path from FIFO BRAM through the time_mem
-LUTRAM to the FSM state register. Port B (the runtime `func_time_in` path, indexed by the
-function FSM's own counter) is left combinational to preserve cycle-exact timeslice
-durations. `[rtl][sim]`
-
-**Constraint:** Minimum timeslice duration is now 2 (was 1). Duration=1 timeslices would
-require the registered port A value to be valid on the same cycle it is written — which
-the pipeline register delays by one cycle. No production sequencer programs use duration=1.
-Regression test T13 was updated to test the new boundary (t1=2). `[rtl][sim]`
-
-**StatusReg pipeline register** (`REB_v5_base.vhd`): A registered copy of the sequencer
-status register output (`StatusReg_r`) breaks a secondary timing path between the
-sequencer's combinational status outputs and the register-read multiplexer in the base
-module. This path was not on the sequencer's critical path but contributed to timing
-pressure in the 3-sequencer configuration. `[rtl]`
-
-**Command interpreter latch fix** (`REB_v5_cmd_interpreter.vhd`): The `seq_wait` signal
-was inferred as a latch (assigned in only one branch of a combinational process). Fixed
-by adding an explicit default assignment. This is a correctness fix found during timing
-review; it does not affect timing directly. `[rtl]`
-
-**Debug process pragma guards** (`parameter_extractor_fsm_v3.vhd`,
-`sequencer_parameter_extractor_top_v4.vhd`): Two debug processes (`dbg_proc`, `dbg_fifo`)
-that read the FIFO output port — valid in simulation but illegal in synthesis — are wrapped
-in `-- pragma translate_off` / `-- pragma translate_on`. This allows the same source file
-to serve both simulation and synthesis without maintaining separate copies. `[rtl]`
-
-**Testbench auto-detect latency** (`tb_sequencer.vhd`): Tests T23, T24, T30B, T31, T32A,
-and T32B were rewritten to detect the first output change dynamically rather than using a
-hardcoded cycle offset. This makes the testbench tolerant of startup-latency changes (such
-as the +1 cycle from the pipeline register) while still asserting cycle-exact output
-durations. Stop/step commands (T23, T24) are now timed relative to first-change rather
-than to an absolute cycle count. `[sim]`
-
-### 11.5 Time memory readback path fix
-
-**File:** `function_v3.vhd`
-
-**Change:** The host-facing readback output `time_mem_out_2` is wired to the registered
-copy of the time memory port A output (`time_bus_2_int_r`) rather than the raw LUTRAM
-combinational output. `[rtl]`
-
-```vhdl
-time_mem_out_2 <= time_bus_2_int_r;   -- registered copy (1-cycle old)
-```
-
-**Motivation:** After the port A pipeline register was added (Section 11.4, time_mem
-pipeline register), the raw LUTRAM output still fed the readback path. Vivado cannot
-statically prove that the sequencer is idle during host register reads, so it reports a
-combinational path from the FIFO BRAM output (which drives the time_mem write address
-via `time_add_mux`) through the LUTRAM to `reg_rd_data_reg`. This path had only +0.066 ns
-slack in build #2. `[rtl]`
-
-**Correctness argument:** The register interface protocol issues the address in the IDLE
-cycle and captures the read data in the RESPOND cycle (2 cycles later). The pipeline
-register `time_bus_2_int_r` captures the LUTRAM output on the cycle after the address is
-presented, so by the time RESPOND samples `time_mem_out_2`, the registered value has been
-stable for a full cycle. The sequencer is guaranteed idle during register reads (hardware
-protocol enforced by `sequencer_busy` gating in the cmd interpreter). `[rtl]`
-
-**Impact on output waveform:** None. This signal is only read by the host register
-interface; the runtime datapath uses `time_bus_2_int` (port B, unregistered) and
-`time_bus_2_int_r` (port A, registered) directly within the function FSM. `[rtl][sim]`
-
-### 11.6 Representative build results
-
-Results below are representative of each RTL iteration and illustrate how each change
-shifted the critical path. Absolute WNS values vary between builds due to Vivado's
-non-deterministic placement and routing.
-
-| Target | Clock | Sequencers | WNS | Critical path | Strategy |
-|--------|-------|------------|-----|---------------|----------|
-| `REB_v5_6p4ns` (1-seq) | 6.4 ns | 1 | +0.137 ns | (not recorded) | `Performance_Explore` |
-| `REB_v5_6p4ns_3_seq` build #1 | 6.4 ns | 3 | +0.089 ns | FIFO BRAM → time_mem LUTRAM → `func_time_add_plus1_reg` | `Performance_Explore` |
-| `REB_v5_6p4ns_3_seq` build #2 | 6.4 ns | 3 | +0.066 ns | FIFO BRAM → time_mem LUTRAM port A → `reg_rd_data_reg` | `Performance_Explore` |
-| `REB_v5_6p4ns_3_seq` build #3 | 6.4 ns | 3 | +0.126 ns | `pgpRemData` → `RstOut` (fo=8579) → `reg_rd_data_reg` | `Performance_Explore` |
-
-The 1-sequencer build was validated on hardware with functional testing (correct data
-volume, no hangs). Dedicated sensor-level testing is required to fully validate the
-modified sequencer code. `[hw]`
-
-Build #3 represents the final sequencer RTL. The remaining critical path is in the PGP
-infrastructure (`lsst_sci`, read-only) — a reset signal with fanout 8579 feeding into the
-register readback mux. The sequencer's own worst path is the function FSM (FIFO BRAM →
-time_mem port B → CARRY4 chain → state register) at +0.182 ns. Registering the runtime
-time_mem output (port B) would change the output waveform by adding 1 cycle to every
-timeslice duration and is therefore rejected. This represents the fundamental architectural
-timing floor for the current sequencer design. `[rtl]`
